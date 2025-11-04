@@ -4,7 +4,7 @@
 
 **🌐 [English](./README.md) | [简体中文](./README_zh-CN.md) | [繁體中文](./README_zh-TW.md) | [日本語](./README_ja.md)**
 
-[![Version](https://img.shields.io/badge/version-v3.1-blue.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v3.2-blue.svg)](./CHANGELOG.md)
 [![Docker](https://img.shields.io/badge/docker-supported-brightgreen.svg)](./docker-compose.yml)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 [![Language](https://img.shields.io/badge/languages-4-orange.svg)](#多言語サポート)
@@ -31,15 +31,27 @@ DeepSeek-OCR-WebUIは、DeepSeek-OCRモデルをベースにしたインテリ�
 
 </div>
 
+### 📈 Star 成長曲線
+
+<div align="center">
+
+![Star History Chart](https://api.star-history.com/svg?repos=neosun100/DeepSeek-OCR-WebUI&type=Date)
+
+**Star 成長曲線 - 私たちの成長を助けてください！⭐**
+
+</div>
+
 ### ✨ コアハイライト
 
 - 🎯 **7つの認識モード** - 文書、OCR、チャート、Find、Freeformなど
 - 🖼️ **バウンディングボックス可視化** - Findモードで位置を自動注釈
 - 📦 **バッチ処理** - 複数画像の順次認識をサポート
+- 📄 **PDF サポート** - PDFファイルをアップロードし、自動的に画像に変換
 - 🎨 **モダンUI** - クールなグラデーション背景とアニメーション効果
 - 🌐 **多言語サポート** - 簡体字中国語、繁体字中国語、英語、日本語
 - 🐳 **Docker デプロイ** - ワンクリック起動、すぐに使える
 - ⚡ **GPU アクセラレーション** - NVIDIA GPUベースの高性能推論
+- 🌏 **ModelScope 自動切り替え** - HuggingFaceが利用できない場合、自動的にModelScopeに切り替え
 
 ---
 
@@ -56,6 +68,21 @@ DeepSeek-OCR-WebUIは、DeepSeek-OCRモデルをベースにしたインテリ�
 | **画像説明** | 🖼️ | 詳細な説明を生成 | 画像理解、アクセシビリティ |
 | **検索と位置特定** ⭐ | 🔍 | 検索して位置を注釈 | 請求書フィールド位置特定 |
 | **カスタムプロンプト** ⭐ | ✨ | 認識ニーズをカスタマイズ | 柔軟な認識タスク |
+
+### 📄 PDF サポート（v3.2 新機能）
+
+- **複数ページPDF変換**：各ページを自動的に個別の画像に変換
+- **リアルタイム進捗表示**：ページごとに変換進捗を表示
+- **ドラッグ&ドロップ**：PDFファイルのドラッグ&ドロップアップロードをサポート
+- **Findモードサポート**：FindモードでPDFをサポート（最初のページを自動使用）
+- **フォーマット検証**：自動ファイルタイプ検出とエラーメッセージ
+
+### 🌏 ModelScope 自動切り替え（v3.2 新機能）
+
+- **自動切り替え**：HuggingFaceが利用できない場合、自動的にModelScopeに切り替え
+- **インテリジェント検出**：ネットワークエラーとタイムアウトをインテリジェントに検出
+- **中国対応**：中国本土のユーザーにシームレスな体験を提供
+- **5分タイムアウト**：設定可能なモデル読み込みタイムアウト
 
 ### 🎨 Findモードの特徴
 
@@ -149,6 +176,27 @@ docker logs deepseek-ocr-webui
 ---
 
 ## 📊 バージョン履歴
+
+### v3.2 (2025-11-04) - PDF サポートと ModelScope 自動切り替え
+
+**📄 新機能**：
+- ✅ PDFアップロードサポート（自動的に画像に変換）
+- ✅ 複数ページPDF変換、リアルタイム進捗表示
+- ✅ ドラッグ&ドロップPDFアップロードサポート
+- ✅ ModelScope自動切り替え（HuggingFaceが利用できない場合）
+- ✅ インテリジェントネットワークエラー検出とリトライ
+
+**🐛 バグ修正**：
+- ✅ PDF変換進捗ログのリアルタイム表示問題を修正
+- ✅ i18nでのボタンテキスト重複表示問題を修正
+- ✅ システム初期化ログ情報を修正
+
+**🔧 技術的改善**：
+- ✅ 高品質PDF→画像変換のためのPyMuPDF統合（144 DPI）
+- ✅ リアルタイム進捗表示のための非同期PDF処理
+- ✅ エラーハンドリングとログ記録の強化
+
+---
 
 ### v3.1 (2025-10-22) - 多言語とバグ修正
 

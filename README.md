@@ -5,7 +5,7 @@
 
 **🌐 [English](./README.md) | [简体中文](./README_zh-CN.md) | [繁體中文](./README_zh-TW.md) | [日本語](./README_ja.md)**
 
-[![Version](https://img.shields.io/badge/version-v3.1-blue.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v3.2-blue.svg)](./CHANGELOG.md)
 [![Docker](https://img.shields.io/badge/docker-supported-brightgreen.svg)](./docker-compose.yml)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 [![Language](https://img.shields.io/badge/languages-4-orange.svg)](#multilingual-support)
@@ -32,15 +32,27 @@ DeepSeek-OCR-WebUI is an intelligent image recognition web application based on 
 
 </div>
 
+### 📈 Star History
+
+<div align="center">
+
+![Star History Chart](https://api.star-history.com/svg?repos=neosun100/DeepSeek-OCR-WebUI&type=Date)
+
+**Star growth over time - Help us grow! ⭐**
+
+</div>
+
 ### ✨ Core Highlights
 
 - 🎯 **7 Recognition Modes** - Document, OCR, Chart, Find, Freeform, etc.
 - 🖼️ **Bounding Box Visualization** - Find mode automatically annotates positions
 - 📦 **Batch Processing** - Support for multiple image sequential recognition
+- 📄 **PDF Support** - Upload PDF files, automatically convert to images
 - 🎨 **Modern UI** - Cool gradient backgrounds and animation effects
 - 🌐 **Multilingual Support** - Simplified Chinese, Traditional Chinese, English, Japanese
 - 🐳 **Docker Deployment** - One-click startup, ready to use
 - ⚡ **GPU Acceleration** - High-performance inference based on NVIDIA GPU
+- 🌏 **ModelScope Fallback** - Auto-switch to ModelScope when HuggingFace is unavailable
 
 ---
 
@@ -57,6 +69,21 @@ DeepSeek-OCR-WebUI is an intelligent image recognition web application based on 
 | **Image Description** | 🖼️ | Generate detailed descriptions | Image understanding, accessibility |
 | **Find & Locate** ⭐ | 🔍 | Find and annotate positions | Invoice field locating |
 | **Custom Prompt** ⭐ | ✨ | Customize recognition needs | Flexible recognition tasks |
+
+### 📄 PDF Support (New in v3.2)
+
+- **Multi-page PDF Conversion**: Automatically converts each page to a separate image
+- **Real-time Progress**: Shows conversion progress page by page
+- **Drag & Drop**: Support drag & drop PDF upload
+- **Find Mode**: PDF support in Find mode (uses first page automatically)
+- **Format Validation**: Automatic file type detection and error prompts
+
+### 🌏 ModelScope Auto-Fallback (New in v3.2)
+
+- **Auto-Switch**: Automatically switches to ModelScope when HuggingFace is unavailable
+- **Smart Detection**: Intelligently detects network errors and timeouts
+- **China-Friendly**: Seamless experience for users in mainland China
+- **5-minute Timeout**: Configurable timeout for model loading
 
 ### 🎨 Find Mode Features
 
@@ -150,6 +177,27 @@ docker logs deepseek-ocr-webui
 ---
 
 ## 📊 Version History
+
+### v3.2 (2025-11-04) - PDF Support & ModelScope Fallback
+
+**📄 New Features**:
+- ✅ PDF upload support (auto-convert to images)
+- ✅ Multi-page PDF conversion with real-time progress
+- ✅ Drag & drop PDF upload
+- ✅ ModelScope auto-fallback (when HuggingFace unavailable)
+- ✅ Smart network error detection and retry
+
+**🐛 Bug Fixes**:
+- ✅ Fixed PDF conversion progress logging
+- ✅ Fixed button text duplication in i18n
+- ✅ Fixed system initialization log information
+
+**🔧 Technical Improvements**:
+- ✅ PyMuPDF integration for high-quality PDF conversion (144 DPI)
+- ✅ Async PDF processing for real-time progress
+- ✅ Enhanced error handling and logging
+
+---
 
 ### v3.1 (2025-10-22) - Multilingual & Bug Fixes
 

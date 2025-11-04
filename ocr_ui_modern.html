@@ -1281,8 +1281,8 @@
                     <!-- 上传区域 -->
                     <div class="find-upload-zone" id="findUploadZone">
                         <div class="find-upload-icon">📤</div>
-                        <div class="find-upload-text">点击或拖拽上传图片</div>
-                        <div class="find-upload-hint">支持 JPG, PNG, JPEG, BMP, GIF</div>
+                        <div class="find-upload-text">点击或拖拽上传图片或 PDF</div>
+                        <div class="find-upload-hint">支持 JPG, PNG, JPEG, BMP, GIF, PDF（PDF 将使用第一页）</div>
                     </div>
                     
                     <!-- 已上传图片预览 -->
@@ -1385,9 +1385,9 @@
             <div class="upload-section">
                 <div class="upload-area" id="uploadArea">
                     <div class="upload-icon">☁️</div>
-                    <div class="upload-text">拖拽图片到这里或点击上传</div>
-                    <div class="upload-hint">支持多张图片批量上传，可调整处理顺序</div>
-                    <input type="file" id="fileInput" multiple accept="image/*">
+                    <div class="upload-text">拖拽图片或 PDF 到这里或点击上传</div>
+                    <div class="upload-hint">支持多张图片批量上传，PDF 会自动转换为图片，可调整处理顺序</div>
+                    <input type="file" id="fileInput" multiple accept="image/*,.pdf,application/pdf">
                 </div>
             </div>
 
@@ -1865,8 +1865,11 @@
             for (const [id, key] of Object.entries(findBtns)) {
                 const btn = document.getElementById(id);
                 if (btn) {
-                    const span = btn.querySelector('span:last-child');
-                    if (span) span.textContent = t(key).replace(/^[🚀🔄🗑️]\s*/, '');
+                    const textSpan = btn.querySelector('span:last-child');
+                    if (textSpan) {
+                        const newText = t(key).replace(/^[🚀🔄🗑️]\s*/, '');
+                        textSpan.textContent = newText;
+                    }
                 }
             }
             
@@ -1882,8 +1885,35 @@
             for (const [id, key] of Object.entries(batchBtns)) {
                 const btn = document.getElementById(id);
                 if (btn) {
-                    const span = btn.querySelector('span:last-child');
-                    if (span) span.textContent = t(key).replace(/^[🚀➕🗑️📋⬇️]\s*/, '');
+                    const emojiSpan = btn.querySelector('span:first-child');
+                    const textSpan = btn.querySelector('span:last-child');
+                    const emoji = emojiSpan ? emojiSpan.textContent.trim() : '';
+                    const newText = t(key).replace(/^[🚀➕🗑️📋⬇️]\s*/, '');
+                    
+                    // 检查按钮结构：批量模式按钮是 <span>emoji</span> 文本节点
+                    // Find模式按钮是 <span>emoji</span><span>文本</span>
+                    
+                    if (emojiSpan && textSpan && textSpan !== emojiSpan) {
+                        // Find模式：有两个span（emoji和文本），更新文本span
+                        textSpan.textContent = newText;
+                    } else if (emojiSpan && !textSpan) {
+                        // 批量模式：只有一个emoji span，文本是按钮的直接文本节点
+                        // 先清空所有非span节点，避免重复
+                        const nodesToRemove = [];
+                        Array.from(btn.childNodes).forEach(node => {
+                            // 保留emoji span，移除所有其他节点（包括文本节点和其他可能的span）
+                            if (node !== emojiSpan) {
+                                nodesToRemove.push(node);
+                            }
+                        });
+                        // 移除所有非emoji span的节点
+                        nodesToRemove.forEach(node => btn.removeChild(node));
+                        // 添加新的文本节点（带空格）
+                        btn.appendChild(document.createTextNode(' ' + newText));
+                    } else if (emojiSpan) {
+                        // 如果只有emoji span但没有文本节点，直接设置innerHTML
+                        btn.innerHTML = `<span>${emoji}</span> ${newText}`;
+                    }
                 }
             }
             
@@ -1964,12 +1994,23 @@
             // 显示日志区域
             elements.logSection.classList.add('active');
             
-            // 初始化日志
+            // 初始化日志 - 获取实际服务地址
+            const getServiceAddress = () => {
+                // 优先使用当前页面的地址
+                const host = window.location.host;
+                const protocol = window.location.protocol;
+                if (host && host !== '') {
+                    return `${protocol}//${host}`;
+                }
+                // 如果无法获取，使用配置文件中的地址
+                return CONFIG.apiUrl || 'http://localhost:8001';
+            };
+            
             addLog('系统初始化', 'info', '🚀 DeepSeek OCR 智能识别系统已就绪，欢迎使用！', {
-                '系统版本': 'v2.0',
-                '服务地址': CONFIG.apiUrl,
-                '支持格式': 'JPG, PNG, JPEG, BMP, GIF',
-                '识别模式': '5种模式可选'
+                '系统版本': 'v3.1',
+                '服务地址': getServiceAddress(),
+                '支持格式': '图片: JPG, PNG, JPEG, BMP, GIF, WEBP | PDF: PDF',
+                '识别模式': '7种模式可选'
             });
         }
 
@@ -2167,65 +2208,216 @@
         }
 
         // Handle Files
-        function handleFiles(files) {
+        async function handleFiles(files) {
             const totalFiles = files.length;
-            const validFiles = files.filter(file => file.type.startsWith('image/'));
-            const invalidCount = totalFiles - validFiles.length;
+            const imageFiles = [];
+            const pdfFiles = [];
+            const invalidFiles = [];
             
-            if (validFiles.length === 0) {
-                showToast('请选择有效的图片文件', 'error');
-                addLog('文件上传失败', 'error', '所有文件都不是有效的图片格式', {
+            // 分类文件
+            files.forEach(file => {
+                const fileType = file.type.toLowerCase();
+                const fileName = file.name.toLowerCase();
+                
+                if (fileType.startsWith('image/') || 
+                    fileName.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i)) {
+                    imageFiles.push(file);
+                } else if (fileType === 'application/pdf' || fileName.endsWith('.pdf')) {
+                    pdfFiles.push(file);
+                } else {
+                    invalidFiles.push(file);
+                }
+            });
+            
+            // 检查是否有有效文件
+            if (imageFiles.length === 0 && pdfFiles.length === 0) {
+                const formats = invalidFiles.map(f => f.name.split('.').pop() || '未知').join(', ');
+                showToast('请选择有效的图片或 PDF 文件', 'error');
+                addLog('文件上传失败', 'error', '所有文件格式都不支持', {
                     '尝试上传': `${totalFiles} 个文件`,
-                    '有效文件': '0 个',
-                    '支持格式': 'JPG, PNG, JPEG, BMP, GIF'
+                    '无效格式': formats,
+                    '支持格式': '图片: JPG, PNG, JPEG, BMP, GIF, WEBP\nPDF: PDF'
                 });
                 return;
             }
+            
+            // 处理无效文件提示
+            if (invalidFiles.length > 0) {
+                const invalidNames = invalidFiles.map(f => f.name).join(', ');
+                showToast(`已忽略 ${invalidFiles.length} 个不支持的文件`, 'warning');
+                addLog('部分文件已忽略', 'warning', `不支持的文件: ${invalidNames}`, {
+                    '已忽略': `${invalidFiles.length} 个`,
+                    '支持格式': '图片或 PDF'
+                });
+            }
+            
+            // 处理图片文件
+            if (imageFiles.length > 0) {
+                const totalSize = imageFiles.reduce((sum, f) => sum + f.size, 0);
+                addLog('开始上传图片', 'info', `正在处理 ${imageFiles.length} 张图片...`, {
+                    '有效文件': `${imageFiles.length} 张`,
+                    '总大小': formatFileSize(totalSize)
+                });
 
-            const totalSize = validFiles.reduce((sum, f) => sum + f.size, 0);
-            addLog('开始上传图片', 'info', `正在处理 ${validFiles.length} 张图片...`, {
-                '有效文件': `${validFiles.length} 张`,
-                '无效文件': `${invalidCount} 个`,
-                '总大小': formatFileSize(totalSize),
-                '平均大小': formatFileSize(totalSize / validFiles.length)
-            });
-
-            let loadedCount = 0;
-            validFiles.forEach((file, index) => {
-                const id = Date.now() + Math.random();
-                const reader = new FileReader();
+                let loadedCount = 0;
+                imageFiles.forEach((file, index) => {
+                    const id = Date.now() + Math.random();
+                    const reader = new FileReader();
+                    
+                    reader.onload = (e) => {
+                        state.images.push({
+                            id,
+                            file,
+                            name: file.name,
+                            size: formatFileSize(file.size),
+                            preview: e.target.result,
+                            status: 'pending',
+                            result: null
+                        });
+                        renderImages();
+                        updateUI();
+                        
+                        loadedCount++;
+                        if (loadedCount === imageFiles.length) {
+                            addLog('图片上传完成', 'success', `所有图片已加载到队列`, {
+                                '成功加载': `${imageFiles.length} 张`,
+                                '当前队列': `${state.images.length} 张`,
+                                '识别模式': getModeDisplayName(state.mode)
+                            });
+                        }
+                    };
+                    
+                    reader.onerror = () => {
+                        addLog(`图片加载失败`, 'error', `无法读取: ${file.name}`);
+                    };
+                    
+                    reader.readAsDataURL(file);
+                });
+            }
+            
+            // 处理 PDF 文件
+            if (pdfFiles.length > 0) {
+                for (const pdfFile of pdfFiles) {
+                    await handlePDFFile(pdfFile);
+                }
+            }
+            
+            if (imageFiles.length > 0) {
+                showToast(`添加了 ${imageFiles.length} 张图片`, 'success');
+            }
+        }
+        
+        // Handle PDF File - 处理 PDF 文件并转换为图片
+        async function handlePDFFile(pdfFile) {
+            try {
+                showToast(`正在转换 PDF: ${pdfFile.name}...`, 'info');
+                addLog('PDF 转换开始', 'info', `正在处理 PDF 文件: ${pdfFile.name}`, {
+                    '文件名': pdfFile.name,
+                    '大小': formatFileSize(pdfFile.size),
+                    '状态': '转换中...'
+                });
                 
-                reader.onload = (e) => {
+                // 创建 FormData
+                const formData = new FormData();
+                formData.append('file', pdfFile);
+                
+                // 调用后端 PDF 转图片接口
+                const response = await fetch(`${CONFIG.apiUrl}/pdf-to-images`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.error || 'PDF 转换失败');
+                }
+                
+                // 显示转换进度（如果后端返回了总页数）
+                const totalPages = data.total_pages || data.images.length;
+                const pageCount = data.images.length;
+                
+                // 添加开始转换的日志
+                if (totalPages > 1) {
+                    addLog('PDF 转换开始', 'info', `开始转换 PDF，共 ${totalPages} 页`, {
+                        '总页数': `${totalPages} 页`,
+                        '状态': '开始处理...'
+                    });
+                }
+                
+                // 为每页创建图片对象 - 使用异步处理确保实时显示进度
+                for (let index = 0; index < data.images.length; index++) {
+                    const imgData = data.images[index];
+                    
+                    // 添加进度日志（每页转换完成时）- 使用异步延迟确保实时显示
+                    if (totalPages > 1) {
+                        // 使用 setTimeout 让浏览器有时间渲染每条日志
+                        await new Promise(resolve => {
+                            setTimeout(() => {
+                                addLog('PDF 转换进度', 'info', `正在处理第 ${index + 1}/${totalPages} 页`, {
+                                    '当前页': `${index + 1}/${totalPages}`,
+                                    '进度': `${Math.round((index + 1) / totalPages * 100)}%`
+                                });
+                                resolve();
+                            }, index * 50); // 每页延迟50ms，确保日志实时显示
+                        });
+                    }
+                    
+                    const id = Date.now() + Math.random() + index;
+                    
+                    // 创建 Blob 对象用于后续处理
+                    const base64Data = imgData.data.split(',')[1];
+                    const byteCharacters = atob(base64Data);
+                    const byteNumbers = new Array(byteCharacters.length);
+                    for (let i = 0; i < byteCharacters.length; i++) {
+                        byteNumbers[i] = byteCharacters.charCodeAt(i);
+                    }
+                    const byteArray = new Uint8Array(byteNumbers);
+                    const blob = new Blob([byteArray], { type: 'image/png' });
+                    const file = new File([blob], imgData.name, { type: 'image/png' });
+                    
                     state.images.push({
                         id,
                         file,
-                        name: file.name,
-                        size: formatFileSize(file.size),
-                        preview: e.target.result,
+                        name: imgData.name,
+                        size: formatFileSize(byteArray.length),
+                        preview: imgData.data, // base64 预览
                         status: 'pending',
-                        result: null
+                        result: null,
+                        isFromPDF: true,
+                        originalPDF: pdfFile.name,
+                        pageNumber: imgData.page_number
                     });
-                    renderImages();
-                    updateUI();
                     
-                    loadedCount++;
-                    if (loadedCount === validFiles.length) {
-                        addLog('图片上传完成', 'success', `所有图片已加载到队列`, {
-                            '成功加载': `${validFiles.length} 张`,
-                            '当前队列': `${state.images.length} 张`,
-                            '识别模式': getModeDisplayName(state.mode)
-                        });
+                    // 实时更新UI（每处理几页更新一次，避免过于频繁）
+                    if ((index + 1) % 5 === 0 || index === data.images.length - 1) {
+                        renderImages();
+                        updateUI();
                     }
-                };
+                }
                 
-                reader.onerror = () => {
-                    addLog(`图片加载失败`, 'error', `无法读取: ${file.name}`);
-                };
+                // 最终更新UI
+                renderImages();
+                updateUI();
                 
-                reader.readAsDataURL(file);
-            });
-
-            showToast(`添加了 ${validFiles.length} 张图片`, 'success');
+                // 添加完成日志
+                addLog('PDF 转换完成', 'success', `PDF 已成功转换为 ${pageCount} 张图片`, {
+                    '原文件': data.original_filename,
+                    '总页数': `${totalPages} 页`,
+                    '已转换': `${pageCount} 页`,
+                    '状态': '已添加到队列'
+                });
+                
+                showToast(`PDF 转换完成，已添加 ${pageCount} 张图片`, 'success');
+                
+            } catch (error) {
+                console.error('PDF 转换错误:', error);
+                showToast(`PDF 转换失败: ${error.message}`, 'error');
+                addLog('PDF 转换失败', 'error', `无法转换 PDF: ${pdfFile.name}`, {
+                    '错误': error.message,
+                    '文件名': pdfFile.name
+                });
+            }
         }
 
         // Render Images
@@ -2970,7 +3162,7 @@
             uploadZone.addEventListener('click', () => {
                 const input = document.createElement('input');
                 input.type = 'file';
-                input.accept = 'image/*';
+                input.accept = 'image/*,.pdf,application/pdf';
                 input.onchange = (e) => {
                     if (e.target.files[0]) {
                         handleFindImageUpload(e.target.files[0]);
@@ -3006,12 +3198,98 @@
             termInput.addEventListener('input', updateFindButtons);
         }
         
-        function handleFindImageUpload(file) {
-            if (!file.type.startsWith('image/')) {
-                showToast('请选择图片文件', 'error');
+        async function handleFindImageUpload(file) {
+            const fileType = file.type.toLowerCase();
+            const fileName = file.name.toLowerCase();
+            
+            // 检查是否为 PDF
+            const isPDF = fileType === 'application/pdf' || fileName.endsWith('.pdf');
+            
+            if (!fileType.startsWith('image/') && !isPDF) {
+                showToast('请选择图片或 PDF 文件', 'error');
+                addLog('文件格式不支持', 'error', `不支持的文件格式: ${file.name}`, {
+                    '文件类型': fileType || '未知',
+                    '支持格式': '图片或 PDF'
+                });
                 return;
             }
             
+            // 如果是 PDF，先转换为图片（只取第一页）
+            if (isPDF) {
+                try {
+                    showToast('正在转换 PDF...', 'info');
+                    
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    
+                    const response = await fetch(`${CONFIG.apiUrl}/pdf-to-images`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (!data.success || !data.images || data.images.length === 0) {
+                        throw new Error(data.error || 'PDF 转换失败');
+                    }
+                    
+                    // 使用第一页
+                    const firstPage = data.images[0];
+                    
+                    // 创建 Blob 和 File 对象
+                    const base64Data = firstPage.data.split(',')[1];
+                    const byteCharacters = atob(base64Data);
+                    const byteNumbers = new Array(byteCharacters.length);
+                    for (let i = 0; i < byteCharacters.length; i++) {
+                        byteNumbers[i] = byteCharacters.charCodeAt(i);
+                    }
+                    const byteArray = new Uint8Array(byteNumbers);
+                    const blob = new Blob([byteArray], { type: 'image/png' });
+                    const imageFile = new File([blob], firstPage.name, { type: 'image/png' });
+                    
+                    // 更新状态
+                    findState.image = imageFile;
+                    findState.imageData = firstPage.data;
+                    
+                    // 显示预览
+                    const preview = document.getElementById('findUploadedPreview');
+                    const img = document.getElementById('findUploadedImage');
+                    const info = document.getElementById('findUploadedInfo');
+                    const uploadZone = document.getElementById('findUploadZone');
+                    
+                    img.src = firstPage.data;
+                    info.textContent = `📄 ${file.name} (第 1 页) - ${formatFileSize(byteArray.length)}`;
+                    
+                    uploadZone.style.display = 'none';
+                    preview.classList.add('active');
+                    
+                    // 更新按钮状态
+                    updateFindButtons();
+                    
+                    // 清除旧结果
+                    document.getElementById('findResultEmpty').style.display = 'block';
+                    document.getElementById('findResultContainer').classList.remove('active');
+                    
+                    addLog('PDF 转换成功', 'success', `Find 模式: ${file.name} (第 1 页)`, {
+                        '原文件': file.name,
+                        '页数': `${data.page_count} 页`,
+                        '使用': '第 1 页',
+                        '模式': '查找定位'
+                    });
+                    
+                    showToast('PDF 已转换为图片', 'success');
+                    
+                } catch (error) {
+                    console.error('PDF 转换错误:', error);
+                    showToast(`PDF 转换失败: ${error.message}`, 'error');
+                    addLog('PDF 转换失败', 'error', `无法转换 PDF: ${file.name}`, {
+                        '错误': error.message
+                    });
+                }
+                return;
+            }
+            
+            // 处理普通图片文件
             findState.image = file;
             
             const reader = new FileReader();

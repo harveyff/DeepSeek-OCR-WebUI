@@ -8,6 +8,9 @@ import os
 import re
 import tempfile
 import shutil
+import io
+import base64
+import time
 from typing import Optional, List, Dict, Any
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -19,51 +22,185 @@ from PIL import Image, ImageOps
 import torch
 from transformers import AutoModel, AutoTokenizer
 import uvicorn
+import fitz  # PyMuPDF
 
 # 全局变量
 model = None
 tokenizer = None
 MODEL_PATH = 'deepseek-ai/DeepSeek-OCR'
+MODEL_SOURCE = None  # 记录实际使用的模型源
+
+# 模型源配置
+MODEL_SOURCES = {
+    'huggingface': 'deepseek-ai/DeepSeek-OCR',
+    'modelscope': 'deepseek-ai/DeepSeek-OCR'
+}
+
+# 自定义超时异常
+class ModelLoadTimeoutError(Exception):
+    """模型加载超时异常"""
+    pass
+
+def load_model_from_source(source_name: str, model_path: str, timeout: int = 300) -> tuple:
+    """
+    从指定源加载模型
+    
+    Args:
+        source_name: 模型源名称 ('huggingface' 或 'modelscope')
+        model_path: 模型路径
+        timeout: 超时时间（秒）
+    
+    Returns:
+        (model, tokenizer) 元组
+    
+    Raises:
+        TimeoutError: 加载超时
+        Exception: 其他加载错误
+    """
+    import requests
+    from requests.exceptions import Timeout as RequestsTimeout, ConnectionError as RequestsConnectionError
+    
+    print(f"📦 尝试从 {source_name.upper()} 加载模型: {model_path}")
+    
+    if source_name == 'modelscope':
+        try:
+            from modelscope import snapshot_download
+            import os
+            
+            # 使用 ModelScope 下载模型到本地缓存
+            print(f"📥 正在从 ModelScope 下载模型...")
+            print(f"   模型路径: {model_path}")
+            print(f"   缓存目录: {os.environ.get('MODELSCOPE_CACHE', os.path.expanduser('~/.cache/modelscope'))}")
+            
+            local_model_path = snapshot_download(
+                model_id=model_path,
+                cache_dir=os.environ.get('MODELSCOPE_CACHE', os.path.expanduser('~/.cache/modelscope')),
+                revision='master'
+            )
+            print(f"✅ ModelScope 模型已下载到: {local_model_path}")
+            
+            # 从本地路径加载
+            print(f"📦 正在从本地路径加载模型...")
+            tokenizer = AutoTokenizer.from_pretrained(
+                local_model_path,
+                trust_remote_code=True,
+            )
+            
+            model = AutoModel.from_pretrained(
+                local_model_path,
+                trust_remote_code=True,
+                use_safetensors=True,
+                attn_implementation="eager",
+                torch_dtype=torch.bfloat16,
+            ).eval().to("cuda")
+            
+            return model, tokenizer
+            
+        except Exception as e:
+            print(f"❌ ModelScope 加载失败: {e}")
+            import traceback
+            print(f"   错误详情: {traceback.format_exc()}")
+            raise
+    else:
+        # HuggingFace 加载
+        try:
+            # 设置 requests 超时（通过环境变量）
+            # transformers 内部使用 requests，可以通过设置环境变量控制超时
+            os.environ['HF_HUB_DOWNLOAD_TIMEOUT'] = str(timeout)
+            
+            print(f"📥 正在从 HuggingFace 下载模型...")
+            print(f"   超时设置: {timeout} 秒")
+            
+            # 尝试加载 tokenizer
+            tokenizer = AutoTokenizer.from_pretrained(
+                model_path,
+                trust_remote_code=True,
+            )
+            print(f"✅ Tokenizer 加载成功")
+            
+            # 尝试加载模型
+            model = AutoModel.from_pretrained(
+                model_path,
+                trust_remote_code=True,
+                use_safetensors=True,
+                attn_implementation="eager",
+                torch_dtype=torch.bfloat16,
+            ).eval().to("cuda")
+            print(f"✅ Model 加载成功")
+            
+            return model, tokenizer
+            
+        except (RequestsTimeout, RequestsConnectionError) as e:
+            print(f"⏱️ HuggingFace 网络连接超时或失败: {e}")
+            raise ModelLoadTimeoutError(f"HuggingFace 连接超时 ({timeout} 秒)")
+        except Exception as e:
+            error_msg = str(e).lower()
+            # 检查是否是网络相关错误
+            if any(keyword in error_msg for keyword in ['timeout', 'connection', 'network', 'unreachable', 'refused']):
+                print(f"⏱️ HuggingFace 网络错误: {e}")
+                raise ModelLoadTimeoutError(f"HuggingFace 网络错误: {e}")
+            else:
+                print(f"❌ HuggingFace 加载失败: {e}")
+                import traceback
+                print(f"   错误详情: {traceback.format_exc()}")
+                raise
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """模型加载生命周期"""
-    global model, tokenizer
+    """模型加载生命周期 - 支持自动切换模型源"""
+    global model, tokenizer, MODEL_SOURCE
     
     print("="*50)
     print("🚀 DeepSeek-OCR 增强版启动中...")
     print("="*50)
     
-    try:
-        print(f"📦 正在加载模型: {MODEL_PATH}")
-        
-        # 加载 tokenizer
-        tokenizer = AutoTokenizer.from_pretrained(
-            MODEL_PATH,
-            trust_remote_code=True,
-        )
-        
-        # 加载模型
-        model = AutoModel.from_pretrained(
-            MODEL_PATH,
-            trust_remote_code=True,
-            use_safetensors=True,
-            attn_implementation="eager",
-            torch_dtype=torch.bfloat16,
-        ).eval().to("cuda")
-        
-        # 设置 pad token
-        if getattr(tokenizer, "pad_token_id", None) is None and getattr(tokenizer, "eos_token_id", None) is not None:
-            tokenizer.pad_token = tokenizer.eos_token
-        if getattr(model.config, "pad_token_id", None) is None and getattr(tokenizer, "pad_token_id", None) is not None:
-            model.config.pad_token_id = tokenizer.pad_token_id
-        
-        print("✅ 模型加载成功！")
-        print("="*50)
-        
-    except Exception as e:
-        print(f"❌ 模型加载失败: {e}")
-        raise
+    model_loaded = False
+    last_error = None
+    
+    # 尝试从 HuggingFace 加载
+    for source_name in ['huggingface', 'modelscope']:
+        if model_loaded:
+            break
+            
+        try:
+            print(f"\n🔄 尝试从 {source_name.upper()} 加载模型...")
+            model_path = MODEL_SOURCES[source_name]
+            
+            model, tokenizer = load_model_from_source(
+                source_name=source_name,
+                model_path=model_path,
+                timeout=300  # 5分钟超时
+            )
+            
+            # 设置 pad token
+            if getattr(tokenizer, "pad_token_id", None) is None and getattr(tokenizer, "eos_token_id", None) is not None:
+                tokenizer.pad_token = tokenizer.eos_token
+            if getattr(model.config, "pad_token_id", None) is None and getattr(tokenizer, "pad_token_id", None) is not None:
+                model.config.pad_token_id = tokenizer.pad_token_id
+            
+            print(f"✅ 模型从 {source_name.upper()} 加载成功！")
+            print("="*50)
+            model_loaded = True
+            MODEL_SOURCE = source_name  # 记录使用的模型源
+            
+        except (ModelLoadTimeoutError, Exception) as e:
+            error_type = type(e).__name__
+            if isinstance(e, ModelLoadTimeoutError) or 'timeout' in str(e).lower() or 'connection' in str(e).lower():
+                print(f"⏱️ {source_name.upper()} 加载超时/网络错误: {e}")
+            else:
+                print(f"❌ {source_name.upper()} 加载失败 ({error_type}): {e}")
+            
+            last_error = e
+            if source_name == 'huggingface':
+                print("🔄 HuggingFace 加载失败，自动切换到 ModelScope...")
+                print("   这通常是因为网络无法访问 HuggingFace")
+                time.sleep(2)  # 短暂等待
+            continue
+    
+    if not model_loaded:
+        error_msg = f"所有模型源加载失败。最后错误: {last_error}"
+        print(f"❌ {error_msg}")
+        raise RuntimeError(error_msg)
     
     yield
     
@@ -185,10 +322,12 @@ async def health_check():
     return {
         "status": "healthy",
         "model": MODEL_PATH,
+        "model_source": MODEL_SOURCE or "unknown",
         "engine": "transformers",
         "model_loaded": model is not None,
         "gpu_available": torch.cuda.is_available(),
-        "gpu_count": torch.cuda.device_count() if torch.cuda.is_available() else 0
+        "gpu_count": torch.cuda.device_count() if torch.cuda.is_available() else 0,
+        "available_sources": list(MODEL_SOURCES.keys())
     }
 
 @app.post("/ocr")
@@ -319,6 +458,156 @@ async def ocr_endpoint(
         if output_dir and os.path.exists(output_dir):
             shutil.rmtree(output_dir, ignore_errors=True)
             print(f"🗑️ 输出目录已清理: {output_dir}")
+
+def pdf_to_images(pdf_path: str, dpi: int = 144) -> List[Image.Image]:
+    """
+    将 PDF 转换为图片列表
+    使用 PyMuPDF (fitz) 进行高质量转换
+    
+    Args:
+        pdf_path: PDF 文件路径
+        dpi: 输出分辨率，默认 144 DPI（高质量）
+    
+    Returns:
+        图片列表，每页一个 PIL Image 对象
+    """
+    images = []
+    pdf_document = None
+    
+    try:
+        pdf_document = fitz.open(pdf_path)
+        zoom = dpi / 72.0
+        matrix = fitz.Matrix(zoom, zoom)
+        
+        for page_num in range(pdf_document.page_count):
+            page = pdf_document[page_num]
+            
+            # 将页面渲染为像素图
+            pixmap = page.get_pixmap(matrix=matrix, alpha=False)
+            
+            # 转换为 PIL Image
+            img_data = pixmap.tobytes("png")
+            img = Image.open(io.BytesIO(img_data))
+            
+            # 确保是 RGB 模式
+            if img.mode in ('RGBA', 'LA'):
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+                img = background
+            elif img.mode != 'RGB':
+                img = img.convert('RGB')
+            
+            images.append(img)
+            print(f"📄 PDF 第 {page_num + 1} 页已转换为图片 ({img.size[0]}x{img.size[1]})")
+        
+        print(f"✅ PDF 转换完成，共 {len(images)} 页")
+        
+    except Exception as e:
+        print(f"❌ PDF 转换失败: {e}")
+        raise HTTPException(status_code=400, detail=f"PDF 转换失败: {str(e)}")
+    finally:
+        if pdf_document:
+            pdf_document.close()
+    
+    return images
+
+@app.post("/pdf-to-images")
+async def pdf_to_images_endpoint(file: UploadFile = File(...)):
+    """
+    PDF 转图片接口
+    接收 PDF 文件，返回多张图片的 base64 编码列表
+    
+    Returns:
+        {
+            "success": bool,
+            "images": [{"data": "base64", "name": "page_1.png", "width": int, "height": int}, ...],
+            "page_count": int,
+            "original_filename": str
+        }
+    """
+    tmp_file = None
+    
+    try:
+        # 验证文件类型
+        if not file.filename.lower().endswith('.pdf'):
+            raise HTTPException(status_code=400, detail="文件必须是 PDF 格式")
+        
+        # 读取 PDF 数据
+        pdf_data = await file.read()
+        
+        # 保存到临时文件
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf', mode='wb') as tmp:
+            tmp.write(pdf_data)
+            tmp_file = tmp.name
+        
+        print(f"📄 PDF 文件已保存: {tmp_file} (大小: {len(pdf_data)} 字节)")
+        
+        # 先打开PDF获取总页数
+        pdf_document = fitz.open(tmp_file)
+        total_pages = pdf_document.page_count
+        pdf_document.close()
+        
+        print(f"📄 PDF 文件总页数: {total_pages}")
+        
+        # 转换 PDF 为图片
+        images = pdf_to_images(tmp_file, dpi=144)
+        
+        if not images:
+            raise HTTPException(status_code=400, detail="PDF 文件为空或无法转换")
+        
+        # 转换为 base64 编码
+        image_list = []
+        original_name = file.filename or "document.pdf"
+        base_name = os.path.splitext(os.path.basename(original_name))[0]
+        
+        for idx, img in enumerate(images):
+            # 将 PIL Image 转换为 PNG bytes
+            img_buffer = io.BytesIO()
+            img.save(img_buffer, format='PNG', optimize=True)
+            img_bytes = img_buffer.getvalue()
+            
+            # 转换为 base64
+            img_base64 = base64.b64encode(img_bytes).decode('utf-8')
+            
+            image_list.append({
+                "data": f"data:image/png;base64,{img_base64}",
+                "name": f"{base_name}_page_{idx + 1}.png",
+                "width": img.size[0],
+                "height": img.size[1],
+                "page_number": idx + 1
+            })
+            
+            print(f"✅ 已转换第 {idx + 1}/{total_pages} 页")
+        
+        print(f"✅ 成功转换 {len(image_list)} 张图片")
+        
+        return JSONResponse({
+            "success": True,
+            "images": image_list,
+            "page_count": len(image_list),
+            "total_pages": total_pages,
+            "original_filename": original_name
+        })
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        print(f"❌ PDF 转图片错误:\n{error_detail}")
+        return JSONResponse({
+            "success": False,
+            "error": str(e)
+        }, status_code=500)
+        
+    finally:
+        # 清理临时文件
+        if tmp_file and os.path.exists(tmp_file):
+            try:
+                os.remove(tmp_file)
+                print(f"🗑️ 临时 PDF 文件已删除: {tmp_file}")
+            except Exception as e:
+                print(f"⚠️ 删除临时文件失败: {e}")
 
 if __name__ == "__main__":
     import sys

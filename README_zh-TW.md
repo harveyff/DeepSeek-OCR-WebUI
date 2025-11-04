@@ -4,7 +4,7 @@
 
 **🌐 [English](./README.md) | [简体中文](./README_zh-CN.md) | [繁體中文](./README_zh-TW.md) | [日本語](./README_ja.md)**
 
-[![Version](https://img.shields.io/badge/version-v3.1-blue.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v3.2-blue.svg)](./CHANGELOG.md)
 [![Docker](https://img.shields.io/badge/docker-supported-brightgreen.svg)](./docker-compose.yml)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 [![Language](https://img.shields.io/badge/languages-4-orange.svg)](#多語言支援)
@@ -31,15 +31,27 @@ DeepSeek-OCR-WebUI 是一個基於 DeepSeek-OCR 模型的智能圖像識別 Web 
 
 </div>
 
+### 📈 Star 增長曲線
+
+<div align="center">
+
+![Star History Chart](https://api.star-history.com/svg?repos=neosun100/DeepSeek-OCR-WebUI&type=Date)
+
+**Star 增長曲線 - 幫助我們成長！⭐**
+
+</div>
+
 ### ✨ 核心亮點
 
 - 🎯 **7 種識別模式** - 文檔、OCR、圖表、Find、Freeform 等
 - 🖼️ **邊界框可視化** - Find 模式自動標註位置
 - 📦 **批量處理** - 支援多張圖片逐一識別
+- 📄 **PDF 支援** - 上傳 PDF 文件，自動轉換為圖片
 - 🎨 **現代化 UI** - 炫酷的漸變背景和動畫效果
 - 🌐 **多語言支援** - 簡中、繁中、英語、日語
 - 🐳 **Docker 部署** - 一鍵啟動，開箱即用
 - ⚡ **GPU 加速** - 基於 NVIDIA GPU 的高性能推理
+- 🌏 **ModelScope 自動切換** - HuggingFace 不可用時自動切換到 ModelScope
 
 ---
 
@@ -56,6 +68,21 @@ DeepSeek-OCR-WebUI 是一個基於 DeepSeek-OCR 模型的智能圖像識別 Web 
 | **圖像描述** | 🖼️ | 生成詳細描述 | 圖片理解、無障礙 |
 | **查找定位** ⭐ | 🔍 | 查找並標註位置 | 發票字段定位 |
 | **自定義提示** ⭐ | ✨ | 自定義識別需求 | 靈活的識別任務 |
+
+### 📄 PDF 支援（v3.2 新功能）
+
+- **多頁 PDF 轉換**：自動將每頁轉換為獨立的圖片
+- **實時進度顯示**：逐頁顯示轉換進度
+- **拖拽上傳**：支援拖拽上傳 PDF 文件
+- **Find 模式支援**：Find 模式支援 PDF（自動使用第一頁）
+- **格式驗證**：自動文件類型檢測和錯誤提示
+
+### 🌏 ModelScope 自動切換（v3.2 新功能）
+
+- **自動切換**：HuggingFace 不可用時自動切換到 ModelScope
+- **智能檢測**：智能識別網絡錯誤和超時
+- **中國友好**：為大陸用戶提供無縫體驗
+- **5分鐘超時**：可配置的模型加載超時時間
 
 ### 🎨 Find 模式特色
 
@@ -149,6 +176,27 @@ docker logs deepseek-ocr-webui
 ---
 
 ## 📊 版本歷史
+
+### v3.2 (2025-11-04) - PDF 支援與 ModelScope 自動切換
+
+**📄 新功能**：
+- ✅ PDF 上傳支援（自動轉換為圖片）
+- ✅ 多頁 PDF 轉換，實時進度顯示
+- ✅ 拖拽上傳 PDF 支援
+- ✅ ModelScope 自動切換（HuggingFace 不可用時）
+- ✅ 智能網絡錯誤檢測和重試
+
+**🐛 Bug 修復**：
+- ✅ 修復 PDF 轉換進度日誌實時顯示問題
+- ✅ 修復按鈕重複顯示文字的國際化問題
+- ✅ 修復系統初始化日誌信息
+
+**🔧 技術改進**：
+- ✅ 集成 PyMuPDF 進行高質量 PDF 轉圖片（144 DPI）
+- ✅ 異步 PDF 處理，確保實時進度顯示
+- ✅ 增強錯誤處理和日誌記錄
+
+---
 
 ### v3.1 (2025-10-22) - 多語言與Bug修復
 

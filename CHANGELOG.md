@@ -4,6 +4,47 @@
 
 ---
 
+## [v3.2] - 2025-11-04
+
+### 🆕 新功能 / New Features
+
+#### PDF 上传支持 / PDF Upload Support
+- ✅ 支持上传 PDF 文件（自动转换为图片）
+- ✅ 多页 PDF 自动转换为多张图片
+- ✅ PDF 转换进度实时显示（逐页显示）
+- ✅ 支持拖拽上传 PDF
+- ✅ Find 模式支持 PDF（自动使用第一页）
+- ✅ 文件格式验证和错误提示
+
+#### ModelScope 自动切换 / ModelScope Auto-Fallback
+- ✅ HuggingFace 下载失败时自动切换到 ModelScope
+- ✅ 智能识别网络错误和超时
+- ✅ 自动重试机制（5分钟超时）
+- ✅ 支持中国大陆用户无感切换
+- ✅ 健康检查显示实际使用的模型源
+
+### 🐛 Bug 修复 / Bug Fixes
+
+- ✅ 修复 PDF 转换进度日志实时显示问题
+- ✅ 修复按钮重复显示文字的国际化问题
+- ✅ 修复系统初始化日志信息（版本号、服务地址、模式数量）
+- ✅ 优化 PDF 转换性能（批量处理优化）
+
+### 🔧 技术改进 / Technical Improvements
+
+- ✅ 使用 PyMuPDF 进行高质量 PDF 转图片（144 DPI）
+- ✅ 异步处理 PDF 转换，确保实时进度显示
+- ✅ 添加 ModelScope 库支持
+- ✅ 改进错误处理和日志记录
+
+### 📚 文档更新 / Documentation Updates
+
+- ✅ 更新版本号到 v3.2
+- ✅ 添加 PDF 支持说明
+- ✅ 添加 ModelScope 切换说明
+
+---
+
 ## [v3.1] - 2025-10-22
 
 ### 🌐 新功能 / New Features
