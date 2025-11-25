@@ -1,0 +1,35 @@
+services:
+  deepseek-ocr-webui-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: deepseek-ocr-webui-frontend
+    image: deepseek-ocr-webui-frontend:latest
+    
+    # 端口映射 - 开放所有 IP 访问
+    ports:
+      - "0.0.0.0:8001:80"
+    
+    # 环境变量 - 配置 vLLM 后端 URL
+    environment:
+      - VLLM_SERVER_URL=${VLLM_SERVER_URL:-}
+    
+    # 重启策略
+    restart: unless-stopped
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # 网络模式
+    networks:
+      - ocr-network
+
+networks:
+  ocr-network:
+    driver: bridge
+

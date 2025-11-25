@@ -1556,6 +1556,12 @@
 
     <script>
         // ====================================
+        // Backend URL Configuration
+        // ====================================
+        // 从环境变量注入的后端 URL，如果未设置则使用占位符
+        window.__BACKEND_URL__ = '${VLLM_SERVER_URL:-}';
+        
+        // ====================================
         // Internationalization (i18n)
         // ====================================
         const translations = {
@@ -1976,8 +1982,12 @@
         // ====================================
 
         // Configuration
+        // 从环境变量读取后端 URL，如果未设置则使用当前域名或默认值
+        const BACKEND_URL = (window.__BACKEND_URL__ && window.__BACKEND_URL__.trim() !== '') 
+            ? window.__BACKEND_URL__ 
+            : (window.location.origin || 'http://localhost:8001');
         const CONFIG = {
-            apiUrl: window.location.origin || 'http://localhost:8001',
+            apiUrl: BACKEND_URL,
             maxConcurrent: 1 // 逐一处理
         };
 
