@@ -36,6 +36,12 @@ RUN pip install \
     python-multipart==0.0.20 \
     python-decouple==3.8
 
+# 预下载模型（关键步骤 - 这会增加镜像大小到约 8GB+）
+RUN python -c "from transformers import AutoModel, AutoProcessor; \
+    model = AutoModel.from_pretrained('deepseek-ai/DeepSeek-OCR', trust_remote_code=True); \
+    processor = AutoProcessor.from_pretrained('deepseek-ai/DeepSeek-OCR', trust_remote_code=True); \
+    print('Model downloaded successfully')"
+
 # 复制应用代码
 COPY web_service_unified.py .
 COPY web_service.py .
