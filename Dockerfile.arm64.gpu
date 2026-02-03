@@ -13,7 +13,12 @@ RUN mkdir -p frontend/dist
 COPY frontend ./frontend/
 WORKDIR /build/frontend
 RUN if [ -f package.json ]; then \
-        npm ci && npm run build; \
+        if [ -f package-lock.json ]; then \
+            npm ci; \
+        else \
+            npm install; \
+        fi && \
+        npm run build; \
     else \
         echo "No package.json found, keeping empty dist directory"; \
     fi

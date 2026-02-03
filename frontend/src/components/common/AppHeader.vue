@@ -88,7 +88,7 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { onClickOutside } from '@vueuse/core'
-import { NLayoutHeader, NButton, NIcon, NPopover, NSpin, NDivider, NTooltip } from 'naive-ui'
+import { NLayoutHeader, NButton, NIcon, NPopover, NSpin, NDivider } from 'naive-ui'
 import { DocumentText, CloudUpload } from '@vicons/ionicons5'
 import { usePagesStore } from '@/stores/pages'
 import OCRQueuePopover from '@/components/common/OCRQueuePopover.vue'
