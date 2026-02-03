@@ -1,0 +1,66 @@
+# DeepSeek-OCR-WebUI Dockerfile for ARM64 with GPU Support
+# For Apple Silicon (M1/M2/M3/M4) - MPS acceleration
+# 
+# ⚠️ IMPORTANT: Docker on macOS cannot access MPS directly!
+# For best performance on Apple Silicon, use native Python environment instead of Docker.
+# This Dockerfile is mainly for ARM64 Linux servers or testing purposes.
+
+FROM python:3.12-slim
+
+# 设置环境变量
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    HF_HOME=/app/models \
+    TRANSFORMERS_CACHE=/app/models \
+    FORCE_BACKEND=mps
+
+WORKDIR /app
+
+# 安装系统依赖
+RUN apt-get update && apt-get install -y \
+    wget \
+    curl \
+    git \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# 复制依赖文件
+COPY requirements.txt .
+COPY DeepSeek-OCR-master ./DeepSeek-OCR-master
+
+# 安装 PyTorch with MPS support (for Apple Silicon)
+# Note: This installs PyTorch that supports MPS, but Docker on Mac cannot use it
+RUN pip install --upgrade pip && \
+    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu && \
+    pip install -r requirements.txt
+
+# 安装 FastAPI 和其他 Web 依赖
+RUN pip install \
+    fastapi==0.119.1 \
+    uvicorn[standard]==0.38.0 \
+    python-multipart==0.0.20 \
+    python-decouple==3.8
+
+# 复制应用代码
+COPY web_service_unified.py .
+COPY web_service.py .
+COPY web_service_gpu.py .
+COPY gpu_manager.py .
+COPY ocr_ui_modern.html .
+COPY backends ./backends
+COPY i18n.js .
+
+# 复制前端构建产物（如果存在）
+COPY frontend/dist ./frontend/dist 2>/dev/null || true
+
+# 暴露端口
+EXPOSE 8001
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5m --retries=3 \
+    CMD curl -f http://localhost:8001/health || exit 1
+
+# 启动服务（使用 unified 版本，会自动检测 MPS）
+CMD ["python", "web_service_unified.py"]
+

@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  deepseek-ocr:
+    build:
+      context: .
+      dockerfile: Dockerfile.arm64
+      platforms:
+        - linux/arm64
+    image: deepseek-ocr-webui:arm64
+    container_name: deepseek-ocr-webui-arm64
+    ports:
+      - "8001:8001"
+    shm_size: 8g
+    restart: unless-stopped
+    environment:
+      - FORCE_BACKEND=cpu
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5m
+

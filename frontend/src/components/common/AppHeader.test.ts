@@ -290,21 +290,6 @@ describe('AppHeader', () => {
         div.remove()
     })
 
-    it('renders GitHub links with correct hrefs', () => {
-        const wrapper = mount(AppHeader, createMountOptions())
-
-        const links = [
-            'https://github.com/neosun100/DeepSeek-OCR-WebUI',
-            'https://github.com/neosun100/DeepSeek-OCR-WebUI/issues',
-            'https://github.com/neosun100/DeepSeek-OCR-WebUI#readme'
-        ]
-
-        links.forEach(href => {
-            const link = wrapper.find(`a[href="${href}"]`)
-            expect(link.exists()).toBe(true)
-            expect(link.attributes('target')).toBe('_blank')
-        })
-    })
 
     it('exposes handleAddFiles and showQueue', async () => {
         const wrapper = mount(AppHeader, createMountOptions())
@@ -356,10 +341,8 @@ describe('AppHeader', () => {
         // expect(indicators[0].props('compact')).toBe(true) 
     })
 
-    it('renders GitHub links and language selector', () => {
+    it('renders language selector', () => {
         const wrapper = mount(AppHeader, createMountOptions())
-        expect(wrapper.find('.github-links').exists()).toBe(true)
-        expect(wrapper.findAll('.github-btn').length).toBe(3)
         expect(wrapper.findComponent({ name: 'LanguageSelector' }).exists()).toBe(true)
     })
 
@@ -380,15 +363,6 @@ describe('AppHeader', () => {
 
 
 
-    it('renders tooltip contents', () => {
-        // NTooltip stub renders both slots, but sometimes default slot content (text) 
-        // might be tricky with stubs/internals. 
-        // At least verify the trigger content which we know renders.
-        const wrapper = mount(AppHeader, createMountOptions())
-        expect(wrapper.text()).toContain('Star')
-        expect(wrapper.text()).toContain('Issue')
-        expect(wrapper.text()).toContain('Docs')
-    })
 
     it('populates popoverContentRef when queue is shown', async () => {
         mockStore.ocrTaskCount = 1

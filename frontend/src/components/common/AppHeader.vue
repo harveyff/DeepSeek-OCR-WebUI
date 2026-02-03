@@ -62,86 +62,6 @@
 
     <!-- Right: Actions -->
     <div class="header-actions">
-      <!-- GitHub Links -->
-      <div class="github-links">
-        <NTooltip
-          trigger="hover"
-          :theme-overrides="{ color: PRIMARY_COLOR, textColor: '#fff' }"
-        >
-          <template #trigger>
-            <a
-              href="https://github.com/neosun100/DeepSeek-OCR-WebUI"
-              target="_blank"
-              class="github-btn"
-            >
-              <NButton
-                quaternary
-                circle
-                size="small"
-              >
-                <template #icon>
-                  <NIcon><LogoGithub /></NIcon>
-                </template>
-              </NButton>
-              <span class="btn-text">Star</span>
-            </a>
-          </template>
-          {{ $t('header.starProject') }}
-        </NTooltip>
-
-        <NTooltip
-          trigger="hover"
-          :theme-overrides="{ color: PRIMARY_COLOR, textColor: '#fff' }"
-        >
-          <template #trigger>
-            <a
-              href="https://github.com/neosun100/DeepSeek-OCR-WebUI/issues"
-              target="_blank"
-              class="github-btn"
-            >
-              <NButton
-                quaternary
-                circle
-                size="small"
-              >
-                <template #icon>
-                  <NIcon><ChatboxEllipsesOutline /></NIcon>
-                </template>
-              </NButton>
-              <span class="btn-text">Issue</span>
-            </a>
-          </template>
-          {{ $t('header.reportIssue') }}
-        </NTooltip>
-
-        <NTooltip
-          trigger="hover"
-          :theme-overrides="{ color: PRIMARY_COLOR, textColor: '#fff' }"
-        >
-          <template #trigger>
-            <a
-              href="https://github.com/neosun100/DeepSeek-OCR-WebUI#readme"
-              target="_blank"
-              class="github-btn"
-            >
-              <NButton
-                quaternary
-                circle
-                size="small"
-              >
-                <template #icon>
-                  <NIcon><BookOutline /></NIcon>
-                </template>
-              </NButton>
-              <span class="btn-text">Docs</span>
-            </a>
-          </template>
-          {{ $t('header.readDocs') }}
-        </NTooltip>
-      </div>
-
-      <NDivider vertical />
-
       <!-- Language Selector -->
       <LanguageSelector />
 
@@ -169,7 +89,7 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { onClickOutside } from '@vueuse/core'
 import { NLayoutHeader, NButton, NIcon, NPopover, NSpin, NDivider, NTooltip } from 'naive-ui'
-import { DocumentText, CloudUpload, LogoGithub, ChatboxEllipsesOutline, BookOutline } from '@vicons/ionicons5'
+import { DocumentText, CloudUpload } from '@vicons/ionicons5'
 import { usePagesStore } from '@/stores/pages'
 import OCRQueuePopover from '@/components/common/OCRQueuePopover.vue'
 import OCRHealthIndicator from '@/components/common/OCRHealthIndicator.vue'
@@ -286,35 +206,6 @@ defineExpose({
   z-index: 1;
 }
 
-
-
-.github-links {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.github-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  color: #555;
-  text-decoration: none;
-  transition: all 0.2s;
-}
-
-.github-btn:hover {
-  background: rgba(24, 160, 88, 0.08);
-  color: var(--primary-color);
-}
-
-.github-text {
-  font-size: 13px;
-  font-weight: 500;
-}
-
 @media (max-width: 768px) {
   .app-header {
     padding: 0 12px;
@@ -327,10 +218,6 @@ defineExpose({
   }
 
   .header-center {
-    display: none;
-  }
-
-  .github-links {
     display: none;
   }
 
