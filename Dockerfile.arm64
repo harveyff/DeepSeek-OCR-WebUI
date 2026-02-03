@@ -45,8 +45,10 @@ COPY ocr_ui_modern.html .
 COPY backends ./backends
 COPY i18n.js .
 
-# 复制前端构建产物（如果存在）
-COPY frontend/dist ./frontend/dist 2>/dev/null || true
+# 创建前端目录（前端构建产物可选）
+RUN mkdir -p ./frontend/dist
+# 如果本地有构建好的前端，取消下面这行的注释：
+# COPY frontend/dist ./frontend/dist
 
 # 暴露端口
 EXPOSE 8001

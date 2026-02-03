@@ -12,6 +12,18 @@
 
 ### 方法 1: 使用 Docker Compose (推荐)
 
+**重要**: 如果 `frontend` 目录不存在，请先创建它：
+
+```bash
+# 如果 frontend 目录不存在，先创建空目录结构
+mkdir -p frontend/dist
+
+# 或者先构建前端（推荐）
+cd frontend && npm ci && npm run build && cd ..
+```
+
+然后构建并启动：
+
 ```bash
 # 构建并启动 ARM64 版本
 docker compose -f docker-compose.arm64.yml build

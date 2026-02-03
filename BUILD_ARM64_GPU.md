@@ -55,6 +55,18 @@ python -c "import torch; print('MPS available:', torch.backends.mps.is_available
 
 ### 构建镜像
 
+**重要**: 如果 `frontend` 目录不存在，请先创建它：
+
+```bash
+# 如果 frontend 目录不存在，先创建空目录结构
+mkdir -p frontend/dist
+
+# 或者先构建前端（推荐）
+cd frontend && npm ci && npm run build && cd ..
+```
+
+然后构建 Docker 镜像：
+
 ```bash
 # 在 ARM64 机器上构建
 docker build -f Dockerfile.arm64.gpu -t deepseek-ocr-webui:arm64-gpu .
