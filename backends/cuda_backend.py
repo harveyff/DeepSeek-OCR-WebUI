@@ -29,18 +29,33 @@ class CUDABackend:
     def load_model(self, source: str = "huggingface", timeout: int = 300):
         """Load CUDA model"""
         try:
+            # Verify CUDA is available before proceeding
+            import torch
+            if not torch.cuda.is_available():
+                raise RuntimeError("CUDA is not available in PyTorch. Please ensure PyTorch is compiled with CUDA support.")
+            
             print(f"📦 Loading DeepSeek-OCR on CUDA")
+            print(f"🔍 CUDA Device: {torch.cuda.get_device_name(0)}")
+            print(f"🔍 CUDA Version: {torch.version.cuda}")
             
             if source == "modelscope":
                 # ModelScope fallback for China
                 from modelscope import snapshot_download
-                local_path = snapshot_download(
-                    model_id=self.model_path,
-                    cache_dir=os.environ.get('MODELSCOPE_CACHE', '~/.cache/modelscope'),
-                    revision='master'
-                )
-                model_path = local_path
-                revision = None
+                cache_dir = os.environ.get('MODELSCOPE_CACHE', '/app/models/modelscope')
+                print(f"📥 Downloading from ModelScope to {cache_dir}...")
+                try:
+                    local_path = snapshot_download(
+                        model_id=self.model_path,
+                        cache_dir=cache_dir,
+                        revision='master',
+                        local_files_only=False  # Allow download if not cached
+                    )
+                    model_path = local_path
+                    revision = None
+                    print(f"✅ ModelScope download completed: {local_path}")
+                except Exception as e:
+                    print(f"❌ ModelScope download failed: {e}")
+                    raise
             else:
                 os.environ['HF_HUB_DOWNLOAD_TIMEOUT'] = str(timeout)
                 model_path = self.model_path
@@ -64,8 +79,17 @@ class CUDABackend:
                 low_cpu_mem_usage=True
             ).to("cuda")
             
+            # Ensure all parameters use consistent dtype to avoid mismatch errors
+            # Convert model to the optimal dtype if needed
+            if optimal_dtype == torch.bfloat16:
+                # For bfloat16, ensure all layers are properly converted
+                self.model = self.model.to(dtype=optimal_dtype)
+            elif optimal_dtype == torch.float16:
+                self.model = self.model.half()
+            # float32 doesn't need conversion
+            
             self.model.eval()
-            print(f"✅ Model loaded on CUDA from {source}")
+            print(f"✅ Model loaded on CUDA from {source} (dtype: {optimal_dtype})")
             return True
             
         except Exception as e:

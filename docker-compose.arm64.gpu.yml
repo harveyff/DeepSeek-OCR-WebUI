@@ -13,10 +13,9 @@ services:
       - "8001:8001"
     shm_size: 8g
     restart: unless-stopped
-    environment:
-      - FORCE_BACKEND=mps
-    # Note: Docker on macOS cannot access MPS directly
-    # For Apple Silicon Mac, use native Python environment instead
+    # Note: MPS only works on macOS, not in Linux containers
+    # The service will auto-detect and use CPU backend in Linux containers
+    # For Apple Silicon Mac, use native Python environment instead of Docker
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
       interval: 30s

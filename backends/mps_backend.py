@@ -32,8 +32,11 @@ class MPSBackend:
                 attn_implementation="eager"  # Disable flash attention for MPS
             ).to(self.device)
             
+            # Force convert all parameters to float32 to avoid dtype mismatch
+            self.model = self.model.float()
+            
             self.model.eval()
-            print(f"✅ Model loaded on {self.device}")
+            print(f"✅ Model loaded on {self.device} (float32)")
             return True
             
         except Exception as e:

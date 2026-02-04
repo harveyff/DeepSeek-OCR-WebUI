@@ -215,9 +215,19 @@ async def lifespan(app: FastAPI):
         # Try HuggingFace first, fallback to ModelScope
         try:
             backend.load_model(source="huggingface", timeout=300)
-        except:
+        except Exception as e:
+            error_msg = str(e)
+            # Only fallback to ModelScope if it's a network/download error, not CUDA error
+            if "CUDA" in error_msg or "cuda" in error_msg.lower():
+                print(f"❌ CUDA error: {error_msg}")
+                raise  # Don't fallback, raise the CUDA error
+            print(f"🔄 HuggingFace download failed: {error_msg}")
             print("🔄 Switching to ModelScope...")
-            backend.load_model(source="modelscope")
+            try:
+                backend.load_model(source="modelscope")
+            except Exception as e2:
+                print(f"❌ ModelScope also failed: {e2}")
+                raise
     elif backend_type == "cpu":
         from backends.cpu_backend import CPUBackend
         backend = CPUBackend(model_path=model_path)

@@ -21,6 +21,7 @@ class CPUBackend:
                 trust_remote_code=True
             )
             
+            # Load model with float32 and convert all parameters to float32
             self.model = AutoModel.from_pretrained(
                 self.model_path,
                 revision=self.revision,
@@ -29,8 +30,12 @@ class CPUBackend:
                 low_cpu_mem_usage=True
             ).to(self.device)
             
+            # Force convert all parameters to float32 to avoid dtype mismatch
+            # This ensures all layers (including biases) use the same dtype
+            self.model = self.model.float()
+            
             self.model.eval()
-            print(f"✅ Model loaded on {self.device}")
+            print(f"✅ Model loaded on {self.device} (float32)")
             return True
             
         except Exception as e:
