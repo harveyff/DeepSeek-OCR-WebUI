@@ -1,9 +1,10 @@
-# DeepSeek-OCR-WebUI Dockerfile for ARM64 with GPU Support
-# For Apple Silicon (M1/M2/M3/M4) - MPS acceleration
+# DeepSeek-OCR-WebUI Dockerfile for ARM64 with GPU Support (CUDA)
+# For ARM64 Linux servers with NVIDIA GPU
 # 
-# ⚠️ IMPORTANT: Docker on macOS cannot access MPS directly!
-# For best performance on Apple Silicon, use native Python environment instead of Docker.
-# This Dockerfile is mainly for ARM64 Linux servers or testing purposes.
+# ⚠️ IMPORTANT: ARM64 CUDA support is limited!
+# - NVIDIA Jetson platforms: Fully supported
+# - Standard ARM64 servers (AWS Graviton): May not support CUDA
+# - If CUDA is not available, consider using x86_64 architecture instead
 
 # Stage 1: Build frontend (if frontend directory exists)
 FROM node:20-slim AS frontend-builder
@@ -23,17 +24,22 @@ RUN if [ -f package.json ]; then \
         echo "No package.json found, keeping empty dist directory"; \
     fi
 
-# Stage 2: Main application
-FROM python:3.12-slim
+# Stage 2: Main application (NVIDIA CUDA base image for ARM64)
+# Use NVIDIA PyTorch image which should have CUDA support
+FROM nvcr.io/nvidia/pytorch:25.09-py3
 
 # 设置环境变量
-# Note: FORCE_BACKEND=mps is removed because MPS only works on macOS, not in Linux containers
-# The service will auto-detect and use CPU backend in Linux containers
+# Note: This Dockerfile is for ARM64 with NVIDIA GPU (CUDA)
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     DEBIAN_FRONTEND=noninteractive \
+    VLLM_USE_V1=0 \
+    CUDA_VISIBLE_DEVICES=0 \
+    LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH \
+    CUDA_HOME=/usr/local/cuda \
     HF_HOME=/app/models \
-    TRANSFORMERS_CACHE=/app/models
+    TRANSFORMERS_CACHE=/app/models \
+    FORCE_BACKEND=cuda
 
 WORKDIR /app
 
@@ -42,18 +48,42 @@ RUN apt-get update && apt-get install -y \
     wget \
     curl \
     git \
-    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # 复制依赖文件
 COPY requirements.txt .
 COPY DeepSeek-OCR-master ./DeepSeek-OCR-master
 
-# 安装 PyTorch with MPS support (for Apple Silicon)
-# Note: This installs PyTorch that supports MPS, but Docker on Mac cannot use it
+# 安装 PyTorch with CUDA support (for ARM64 GPU)
+# Note: ARM64 CUDA support is limited, mainly for NVIDIA Jetson platforms
 RUN pip install --upgrade pip && \
-    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu && \
     pip install -r requirements.txt
+
+# 尝试安装支持 CUDA 的 PyTorch
+# 如果 NVIDIA 镜像已有 CUDA 支持，这个步骤会跳过
+RUN python -c "import torch; print(f'Initial CUDA available: {torch.cuda.is_available()}')" || \
+    (echo "PyTorch not found, installing..." && \
+     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 || \
+     pip install torch torchvision torchaudio || \
+     echo "⚠️ Failed to install PyTorch")
+
+# 验证 CUDA 是否可用（必须）
+RUN python <<EOF
+import torch
+import sys
+
+if not torch.cuda.is_available():
+    print("❌ CRITICAL: CUDA is not available in PyTorch!")
+    print("This Dockerfile (arm64.gpu) is designed for CUDA support.")
+    print("If CUDA is not available, you may need to:")
+    print("1. Use Dockerfile.arm64.cuda instead")
+    print("2. Use x86_64 architecture")
+    print("3. Use NVIDIA Jetson platform")
+    sys.exit(1)
+else:
+    print(f"✅ CUDA available: {torch.cuda.get_device_name(0)}")
+    print(f"✅ CUDA version: {torch.version.cuda}")
+EOF
 
 # 安装 FastAPI 和其他 Web 依赖
 RUN pip install \
