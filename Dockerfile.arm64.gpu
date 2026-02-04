@@ -27,12 +27,13 @@ RUN if [ -f package.json ]; then \
 FROM python:3.12-slim
 
 # 设置环境变量
+# Note: FORCE_BACKEND=mps is removed because MPS only works on macOS, not in Linux containers
+# The service will auto-detect and use CPU backend in Linux containers
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     DEBIAN_FRONTEND=noninteractive \
     HF_HOME=/app/models \
-    TRANSFORMERS_CACHE=/app/models \
-    FORCE_BACKEND=mps
+    TRANSFORMERS_CACHE=/app/models
 
 WORKDIR /app
 
