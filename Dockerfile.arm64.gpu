@@ -58,7 +58,8 @@ COPY DeepSeek-OCR-master ./DeepSeek-OCR-master
 # 安装 PyTorch with CUDA support (for ARM64 GPU)
 # Note: ARM64 CUDA support is limited, mainly for NVIDIA Jetson platforms
 RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+    pip install -r requirements.txt && \
+    pip cache purge || true
 
 # 检查 PyTorch 是否已安装（NVIDIA 镜像通常已包含）
 # 避免重复安装 PyTorch 以减小镜像大小
@@ -102,17 +103,19 @@ RUN pip install \
     fastapi==0.119.1 \
     uvicorn[standard]==0.38.0 \
     python-multipart==0.0.20 \
-    python-decouple==3.8
-
-# 预下载模型（关键步骤 - 这会增加镜像大小到约 8GB+）
-# 如果希望减小镜像大小，可以注释掉这部分，让模型在运行时首次使用时下载
-# 注意：首次运行时下载模型会增加启动时间
-RUN python -c "from transformers import AutoModel, AutoProcessor; \
-    model = AutoModel.from_pretrained('deepseek-ai/DeepSeek-OCR', trust_remote_code=True); \
-    processor = AutoProcessor.from_pretrained('deepseek-ai/DeepSeek-OCR', trust_remote_code=True); \
-    print('Model downloaded successfully')" && \
-    # 清理 pip 缓存以减小镜像大小
+    python-decouple==3.8 && \
     pip cache purge || true
+
+# 模型下载：已移除预下载步骤以减小镜像大小（从 13GB 降到约 5GB）
+# 模型将在首次运行时自动下载到 /app/models 目录
+# 如果需要预下载模型（会增加约 8GB），取消下面注释：
+# RUN python -c "from transformers import AutoModel, AutoProcessor; \
+#     model = AutoModel.from_pretrained('deepseek-ai/DeepSeek-OCR', trust_remote_code=True); \
+#     processor = AutoProcessor.from_pretrained('deepseek-ai/DeepSeek-OCR', trust_remote_code=True); \
+#     print('Model downloaded successfully')"
+
+# 清理 pip 缓存以减小镜像大小
+RUN pip cache purge || true
 
 # 复制应用代码
 COPY web_service_unified.py .
