@@ -19,7 +19,8 @@ RUN if [ -f package.json ]; then \
         else \
             npm install; \
         fi && \
-        npm run build; \
+        npm run build && \
+        rm -rf node_modules .npm; \
     else \
         echo "No package.json found, keeping empty dist directory"; \
     fi
@@ -59,12 +60,11 @@ COPY DeepSeek-OCR-master ./DeepSeek-OCR-master
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt
 
-# 尝试安装支持 CUDA 的 PyTorch
-# 如果 NVIDIA 镜像已有 CUDA 支持，这个步骤会跳过
-RUN python -c "import torch; print(f'Initial CUDA available: {torch.cuda.is_available()}')" || \
-    (echo "PyTorch not found, installing..." && \
+# 检查 PyTorch 是否已安装（NVIDIA 镜像通常已包含）
+# 避免重复安装 PyTorch 以减小镜像大小
+RUN python -c "import torch; print(f'PyTorch version: {torch.__version__}'); print(f'CUDA compiled: {torch.version.cuda if hasattr(torch.version, \"cuda\") and torch.version.cuda else \"N/A\"}')" || \
+    (echo "⚠️ PyTorch not found in base image, installing..." && \
      pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 || \
-     pip install torch torchvision torchaudio || \
      echo "⚠️ Failed to install PyTorch")
 
 # 验证 PyTorch CUDA 支持（构建时检查库支持，运行时检查设备）
@@ -105,10 +105,14 @@ RUN pip install \
     python-decouple==3.8
 
 # 预下载模型（关键步骤 - 这会增加镜像大小到约 8GB+）
+# 如果希望减小镜像大小，可以注释掉这部分，让模型在运行时首次使用时下载
+# 注意：首次运行时下载模型会增加启动时间
 RUN python -c "from transformers import AutoModel, AutoProcessor; \
     model = AutoModel.from_pretrained('deepseek-ai/DeepSeek-OCR', trust_remote_code=True); \
     processor = AutoProcessor.from_pretrained('deepseek-ai/DeepSeek-OCR', trust_remote_code=True); \
-    print('Model downloaded successfully')"
+    print('Model downloaded successfully')" && \
+    # 清理 pip 缓存以减小镜像大小
+    pip cache purge || true
 
 # 复制应用代码
 COPY web_service_unified.py .
