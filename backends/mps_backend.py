@@ -1,5 +1,6 @@
 """MPS Backend for Apple Silicon - Using DeepSeek-OCR with MPS"""
 from typing import Optional
+import warnings
 from transformers import AutoProcessor, AutoModel
 import torch
 import platform
@@ -23,14 +24,17 @@ class MPSBackend:
                 trust_remote_code=True
             )
             
-            self.model = AutoModel.from_pretrained(
-                self.model_path,
-                revision=self.revision,
-                trust_remote_code=True,
-                torch_dtype=torch.float32,  # float32 for MPS compatibility
-                low_cpu_mem_usage=True,
-                attn_implementation="eager"  # Disable flash attention for MPS
-            ).to(self.device)
+            # Suppress model type mismatch warning (deepseek_vl_v2 vs DeepseekOCR)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=".*You are using a model of type.*")
+                self.model = AutoModel.from_pretrained(
+                    self.model_path,
+                    revision=self.revision,
+                    trust_remote_code=True,
+                    torch_dtype=torch.float32,  # float32 for MPS compatibility
+                    low_cpu_mem_usage=True,
+                    attn_implementation="eager"  # Disable flash attention for MPS
+                ).to(self.device)
             
             # Force convert all parameters to float32 to avoid dtype mismatch
             self.model = self.model.float()

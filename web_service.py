@@ -11,6 +11,7 @@ import shutil
 import io
 import base64
 import time
+import warnings
 from typing import Optional, List, Dict, Any
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -85,13 +86,16 @@ def load_model_from_source(source_name: str, model_path: str, timeout: int = 300
                 trust_remote_code=True,
             )
             
-            model = AutoModel.from_pretrained(
-                local_model_path,
-                trust_remote_code=True,
-                use_safetensors=True,
-                attn_implementation="eager",
-                torch_dtype=torch.bfloat16,
-            ).eval().to("cuda")
+            # Suppress model type mismatch warning (deepseek_vl_v2 vs DeepseekOCR)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=".*You are using a model of type.*")
+                model = AutoModel.from_pretrained(
+                    local_model_path,
+                    trust_remote_code=True,
+                    use_safetensors=True,
+                    attn_implementation="eager",
+                    torch_dtype=torch.bfloat16,
+                ).eval().to("cuda")
             
             return model, tokenizer
             
@@ -118,13 +122,16 @@ def load_model_from_source(source_name: str, model_path: str, timeout: int = 300
             print(f"✅ Tokenizer 加载成功")
             
             # 尝试加载模型
-            model = AutoModel.from_pretrained(
-                model_path,
-                trust_remote_code=True,
-                use_safetensors=True,
-                attn_implementation="eager",
-                torch_dtype=torch.bfloat16,
-            ).eval().to("cuda")
+            # Suppress model type mismatch warning (deepseek_vl_v2 vs DeepseekOCR)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=".*You are using a model of type.*")
+                model = AutoModel.from_pretrained(
+                    model_path,
+                    trust_remote_code=True,
+                    use_safetensors=True,
+                    attn_implementation="eager",
+                    torch_dtype=torch.bfloat16,
+                ).eval().to("cuda")
             print(f"✅ Model 加载成功")
             
             return model, tokenizer

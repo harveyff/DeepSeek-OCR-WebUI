@@ -1,4 +1,5 @@
 """CPU Backend - Compatible with Linux/Mac without GPU"""
+import warnings
 from transformers import AutoProcessor, AutoModel
 import torch
 
@@ -22,13 +23,16 @@ class CPUBackend:
             )
             
             # Load model with float32 and convert all parameters to float32
-            self.model = AutoModel.from_pretrained(
-                self.model_path,
-                revision=self.revision,
-                trust_remote_code=True,
-                torch_dtype=torch.float32,
-                low_cpu_mem_usage=True
-            ).to(self.device)
+            # Suppress model type mismatch warning (deepseek_vl_v2 vs DeepseekOCR)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=".*You are using a model of type.*")
+                self.model = AutoModel.from_pretrained(
+                    self.model_path,
+                    revision=self.revision,
+                    trust_remote_code=True,
+                    torch_dtype=torch.float32,
+                    low_cpu_mem_usage=True
+                ).to(self.device)
             
             # Force convert all parameters to float32 to avoid dtype mismatch
             # This ensures all layers (including biases) use the same dtype

@@ -1,5 +1,6 @@
 """CUDA Backend for NVIDIA GPUs"""
 import os
+import warnings
 from transformers import AutoProcessor, AutoModel
 import torch
 
@@ -71,13 +72,17 @@ class CUDABackend:
             optimal_dtype = self.get_optimal_dtype()
             print(f"📊 Using dtype: {optimal_dtype}")
             
-            self.model = AutoModel.from_pretrained(
-                model_path,
-                revision=revision,
-                trust_remote_code=True,
-                torch_dtype=optimal_dtype,
-                low_cpu_mem_usage=True
-            ).to("cuda")
+            # Suppress model type mismatch warning (deepseek_vl_v2 vs DeepseekOCR)
+            # This is a known compatibility warning that doesn't affect functionality
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=".*You are using a model of type.*")
+                self.model = AutoModel.from_pretrained(
+                    model_path,
+                    revision=revision,
+                    trust_remote_code=True,
+                    torch_dtype=optimal_dtype,
+                    low_cpu_mem_usage=True
+                ).to("cuda")
             
             # Ensure all parameters use consistent dtype to avoid mismatch errors
             # Convert model to the optimal dtype if needed
