@@ -2,6 +2,26 @@
 # 基于 NVIDIA PyTorch 镜像，支持 GPU 加速
 # 使用最新镜像，采用 transformers 引擎（更稳定）
 
+# Stage 1: Build frontend
+FROM node:20-slim AS frontend-builder
+WORKDIR /build
+# Copy frontend directory - if it doesn't exist, create empty structure
+RUN mkdir -p frontend/dist
+COPY frontend ./frontend/
+WORKDIR /build/frontend
+RUN if [ -f package.json ]; then \
+        if [ -f package-lock.json ]; then \
+            npm ci; \
+        else \
+            npm install; \
+        fi && \
+        npm run build && \
+        rm -rf node_modules .npm; \
+    else \
+        echo "No package.json found, keeping empty dist directory"; \
+    fi
+
+# Stage 2: Main application
 FROM nvcr.io/nvidia/pytorch:25.09-py3
 
 # 设置环境变量
@@ -38,12 +58,17 @@ RUN pip install \
     python-decouple==3.8
 
 # 复制应用代码
+COPY web_service_unified.py .
 COPY web_service.py .
 COPY web_service_gpu.py .
 COPY gpu_manager.py .
 COPY ocr_ui_modern.html .
 COPY backends ./backends
 COPY i18n.js .
+
+# 复制前端构建产物（从构建阶段）
+RUN mkdir -p ./frontend/dist
+COPY --from=frontend-builder /build/frontend/dist ./frontend/dist
 
 # 暴露端口
 EXPOSE 8001
@@ -52,5 +77,5 @@ EXPOSE 8001
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5m --retries=3 \
     CMD curl -f http://localhost:8001/health || exit 1
 
-# 启动服务 (使用 GPU 管理版本 - 懒加载 + 即用即卸)
-CMD ["python", "web_service_gpu.py", "8001"]
+# 启动服务 (使用 unified 版本支持 Vue 3 前端)
+CMD ["python", "web_service_unified.py"]

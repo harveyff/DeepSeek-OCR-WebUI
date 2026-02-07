@@ -61,17 +61,43 @@ class CUDABackend:
                 os.environ['HF_HUB_DOWNLOAD_TIMEOUT'] = str(timeout)
                 model_path = self.model_path
                 revision = self.revision
+                print(f"📥 Loading from HuggingFace: {model_path}")
+                if revision:
+                    print(f"   Revision: {revision}")
+                
+                # Check cache directory
+                cache_dir = os.environ.get('HF_HOME', os.environ.get('TRANSFORMERS_CACHE', '/app/models'))
+                print(f"   Cache directory: {cache_dir}")
+                
+                # Check if model might be cached
+                from pathlib import Path
+                cache_path = Path(cache_dir) / "hub" / f"models--{model_path.replace('/', '--')}"
+                if cache_path.exists():
+                    print(f"   ✅ Found cached model at: {cache_path}")
+                    print(f"   ⏳ Loading from cache (should be faster)...")
+                else:
+                    print(f"   ⚠️  Model not found in cache")
+                    print(f"   ⏳ Downloading model for the first time (~8GB, may take 5-15 minutes)...")
+                    print(f"   💡 Tip: Model will be cached for future use")
             
+            print("📦 Step 1/2: Loading processor...")
+            import time
+            start_time = time.time()
             self.processor = AutoProcessor.from_pretrained(
                 model_path,
                 revision=revision,
                 trust_remote_code=True
             )
+            elapsed = time.time() - start_time
+            print(f"✅ Processor loaded successfully (took {elapsed:.1f}s)")
             
             # Use optimal dtype based on GPU capability
             optimal_dtype = self.get_optimal_dtype()
             print(f"📊 Using dtype: {optimal_dtype}")
             
+            print("📦 Step 2/2: Loading model (this may take 2-10 minutes)...")
+            print("   ⏳ Downloading/loading model files...")
+            start_time = time.time()
             # Suppress model type mismatch warning (deepseek_vl_v2 vs DeepseekOCR)
             # This is a known compatibility warning that doesn't affect functionality
             with warnings.catch_warnings():
@@ -82,8 +108,16 @@ class CUDABackend:
                     trust_remote_code=True,
                     torch_dtype=optimal_dtype,
                     low_cpu_mem_usage=True
-                ).to("cuda")
+                )
+            elapsed = time.time() - start_time
+            print(f"   ✅ Model files loaded (took {elapsed:.1f}s)")
+            print("   ⏳ Moving model to CUDA device...")
+            start_time = time.time()
+            self.model = self.model.to("cuda")
+            elapsed = time.time() - start_time
+            print(f"   ✅ Model moved to CUDA (took {elapsed:.1f}s)")
             
+            print("   ⏳ Converting model dtype...")
             # Ensure all parameters use consistent dtype to avoid mismatch errors
             # Convert model to the optimal dtype if needed
             if optimal_dtype == torch.bfloat16:
@@ -93,8 +127,9 @@ class CUDABackend:
                 self.model = self.model.half()
             # float32 doesn't need conversion
             
+            print("   ⏳ Setting model to evaluation mode...")
             self.model.eval()
-            print(f"✅ Model loaded on CUDA from {source} (dtype: {optimal_dtype})")
+            print(f"✅ Model loaded successfully on CUDA from {source} (dtype: {optimal_dtype})")
             return True
             
         except Exception as e:
