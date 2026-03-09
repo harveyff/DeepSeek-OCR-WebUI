@@ -53,12 +53,11 @@ class CUDABackend:
             optimal_dtype = self.get_optimal_dtype()
             print(f"📊 Using dtype: {optimal_dtype}")
             
-            # Use flash_attention_2 for CUDA (recommended by OCR-2)
             self.model = AutoModel.from_pretrained(
                 model_path,
-                _attn_implementation='flash_attention_2',
                 trust_remote_code=True,
                 use_safetensors=True,
+                attn_implementation="eager",
                 torch_dtype=optimal_dtype,
                 low_cpu_mem_usage=True
             ).eval().to("cuda")
