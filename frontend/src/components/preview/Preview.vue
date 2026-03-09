@@ -752,17 +752,25 @@ onUnmounted(() => {
   border-collapse: collapse !important;
   margin-bottom: 1rem !important;
   border: 1px solid #d1d5db !important;
+  background-color: #ffffff !important;
 }
 
 :deep(.markdown-render-area table:not(.layout-table) th),
 :deep(.markdown-render-area table:not(.layout-table) td) {
   border: 1px solid #d1d5db !important;
   padding: 8px !important;
+  color: #1f2937 !important;
+  background-color: #ffffff !important;
 }
 
-:deep(.markdown-render-area table:not(.layout-table) th) {
+:deep(.markdown-render-area table:not(.layout-table) th),
+:deep(.markdown-render-area table:not(.layout-table) tr:first-child td) {
   background-color: #f3f4f6 !important;
   font-weight: 600 !important;
+}
+
+:deep(.markdown-render-area table:not(.layout-table) tr:nth-child(even) td) {
+  background-color: #f9fafb !important;
 }
 
 /* Layout tables (generated for side-by-side content) should have no borders */

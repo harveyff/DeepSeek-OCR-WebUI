@@ -1,5 +1,6 @@
 # Requirements for Apple Silicon (Mac M1/M2/M3/M4)
 # Use with: pip install -r requirements-mac.txt
+# Model: deepseek-ai/DeepSeek-OCR-2
 
 # PyTorch with MPS support (install separately first)
 # torch>=2.0.0

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MCP Server for DeepSeek-OCR"""
+"""MCP Server for DeepSeek-OCR-2"""
 import asyncio
 import json
 import base64
@@ -42,7 +42,7 @@ async def handle_request(request: dict) -> dict:
         return {
             "tools": [{
                 "name": "ocr_recognize",
-                "description": "Recognize text from image using DeepSeek-OCR",
+                "description": "Recognize text from image using DeepSeek-OCR-2",
                 "inputSchema": {
                     "type": "object",
                     "properties": {

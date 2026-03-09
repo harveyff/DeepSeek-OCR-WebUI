@@ -19,6 +19,7 @@
       >
         {{ $t('header.scan2Doc') }}
       </span>
+      <span class="model-badge">OCR-2</span>
     </div>
 
     <!-- Center: OCR Status & Queue -->
@@ -163,6 +164,17 @@ defineExpose({
   font-weight: 700;
   color: #333;
   letter-spacing: -0.5px;
+}
+
+.model-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #18a058, #0d7a3e);
+  padding: 2px 8px;
+  border-radius: 10px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 
 .header-center {

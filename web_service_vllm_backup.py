@@ -45,9 +45,9 @@ app.add_middleware(
 
 # 全局变量
 engine = None
-MODEL_PATH = 'deepseek-ai/DeepSeek-OCR'
+MODEL_PATH = 'deepseek-ai/DeepSeek-OCR-2'
 BASE_SIZE = 1024
-IMAGE_SIZE = 640
+IMAGE_SIZE = 768
 CROP_MODE = True
 
 # vLLM相关类的全局引用

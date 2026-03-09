@@ -6,7 +6,7 @@
 
 **🌐 [English](./README.md) | [简体中文](./README_zh-CN.md) | [繁體中文](./README_zh-TW.md) | [日本語](./README_ja.md)**
 
-[![Version](https://img.shields.io/badge/version-v3.6-blue.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v4.1-blue.svg)](./CHANGELOG.md)
 [![Docker](https://img.shields.io/badge/docker-neosun/deepseek--ocr-brightgreen.svg)](https://hub.docker.com/r/neosun/deepseek-ocr)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 [![Vue](https://img.shields.io/badge/Vue-3.x-4FC08D.svg)](https://vuejs.org/)
@@ -17,6 +17,51 @@
 [Features](#-features) • [Quick Start](#-quick-start) • [Screenshots](#-screenshots) • [Contributors](#-contributors)
 
 </div>
+
+---
+
+## 🎉 v4.1 Update: UI Improvements & Model Version Display
+
+<div align="center">
+
+![v4.1 OCR-2 UI](./assets/v4.1_ocr2_ui.png)
+
+*Header shows OCR-2 model badge · Footer displays v4.1 · OCR-2*
+
+</div>
+
+- 🏷️ **OCR-2 Model Badge** — Header now shows a prominent `OCR-2` badge so users instantly know the model version
+- 🎨 **Table Rendering Fix** — OCR-detected tables now display with white backgrounds, dark text, and zebra striping for clear readability (previously appeared as dark/unreadable blocks)
+- 📡 **Health API `model_version`** — `/health` endpoint now returns `"model_version": "DeepSeek-OCR-2"` for programmatic version detection
+- 🔖 **Footer Version** — Updated to `v4.1 · OCR-2`
+
+---
+
+## 🎉 v4.0 Update: DeepSeek-OCR-2 Model Upgrade!
+
+**🚀 Major model upgrade to DeepSeek-OCR-2 (Visual Causal Flow) — better accuracy, higher resolution!**
+
+### ✨ What's New in v4.0
+
+- 🧠 **DeepSeek-OCR-2 Model** - Upgraded to the latest [DeepSeek-OCR-2](https://github.com/deepseek-ai/DeepSeek-OCR-2) with Visual Causal Flow architecture
+- 🔬 **Higher Resolution** - Dynamic resolution up to (0-6)×768×768 + 1×1024×1024 (was 640×640)
+- ⚡ **Flash Attention 2** - Native `flash_attention_2` support on CUDA for optimal inference speed
+- 🎯 **Improved Accuracy** - Better document understanding, chart parsing, and text recognition
+- 🔄 **Full Backward Compatibility** - All 7 recognition modes, REST API, and frontend unchanged
+- 🐳 **Docker v4.0** - New all-in-one image with pre-downloaded OCR-2 model (`Dockerfile.v4.0`)
+- 📦 **Unified Tokenizer** - Switched from `AutoProcessor` to `AutoTokenizer` (aligned with official OCR-2 API)
+
+### 🔧 Technical Changes
+
+| Component | v3.6 (OCR v1) | v4.0 (OCR-2) |
+|-----------|---------------|---------------|
+| Model | `deepseek-ai/DeepSeek-OCR` | `deepseek-ai/DeepSeek-OCR-2` |
+| `image_size` | 640 | **768** |
+| Attention | `eager` | **`flash_attention_2`** (CUDA) |
+| Tokenizer | `AutoProcessor` | **`AutoTokenizer`** |
+| Resolution | Fixed crops | **Dynamic (0-6)×768 + 1×1024** |
+
+> 💡 All existing features from v3.6 (concurrency, rate limiting, queue management, Vue 3 frontend) are fully preserved.
 
 ---
 
@@ -193,13 +238,13 @@ DeepSeek-OCR-WebUI is an intelligent document recognition web application powere
 
 ```bash
 # Pull and run
-docker pull neosun/deepseek-ocr:v3.6
+docker pull neosun/deepseek-ocr:v4.1
 docker run -d \
   --name deepseek-ocr \
   --gpus all \
   -p 8001:8001 \
   --shm-size=8g \
-  neosun/deepseek-ocr:v3.6
+  neosun/deepseek-ocr:v4.1
 
 # Access: http://localhost:8001
 ```
@@ -208,7 +253,9 @@ docker run -d \
 
 | Tag | Description |
 |-----|-------------|
-| `latest` | Latest stable (= v3.6) |
+| `latest` | Latest stable (= v4.1) |
+| `v4.1` | UI improvements & model version display |
+| `v4.0` | DeepSeek-OCR-2 model upgrade |
 | `v3.6` | Backend concurrency & rate limiting |
 | `v3.5` | Vue 3 frontend version |
 | `v3.3.1-fix-bfloat16` | BFloat16 compatibility fix |
@@ -310,6 +357,25 @@ Switch language via the selector in the top-right corner.
 ---
 
 ## 📊 Version History
+
+### v4.1 (2026-02-20) - UI Improvements & Model Version Display
+
+**🏷️ UI & API Enhancements:**
+- ✅ OCR-2 model badge in header for instant version recognition
+- ✅ Table rendering fix: white background, dark text, zebra striping
+- ✅ Health API returns `model_version: "DeepSeek-OCR-2"`
+- ✅ Footer updated to `v4.1 · OCR-2`
+
+### v4.0 (2026-02-20) - DeepSeek-OCR-2 Model Upgrade
+
+**🧠 Major Model Upgrade:**
+- ✅ Upgraded to [DeepSeek-OCR-2](https://github.com/deepseek-ai/DeepSeek-OCR-2) (Visual Causal Flow)
+- ✅ Dynamic resolution: (0-6)×768×768 + 1×1024×1024
+- ✅ Flash Attention 2 on CUDA for optimal inference speed
+- ✅ Switched from `AutoProcessor` to `AutoTokenizer`
+- ✅ `image_size` upgraded from 640 to 768
+- ✅ New `Dockerfile.v4.0` with pre-downloaded OCR-2 model
+- ✅ Full backward compatibility with all v3.6 features
 
 ### v3.6 (2026-01-20) - Backend Concurrency & Rate Limiting
 

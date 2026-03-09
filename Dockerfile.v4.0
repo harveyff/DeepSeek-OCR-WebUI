@@ -1,0 +1,51 @@
+# DeepSeek-OCR-2 All-in-One Docker Image v4.0
+# Upgrade: DeepSeek-OCR → DeepSeek-OCR-2 (Visual Causal Flow)
+# Base image already includes: PyTorch 2.9, CUDA 13.0, flash-attn
+
+FROM nvcr.io/nvidia/pytorch:25.09-py3
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    VLLM_USE_V1=0 \
+    CUDA_VISIBLE_DEVICES=0 \
+    LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH \
+    CUDA_HOME=/usr/local/cuda \
+    HF_HOME=/app/models \
+    TRANSFORMERS_CACHE=/app/models
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y wget curl git && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+
+RUN pip install --upgrade pip && pip install -r requirements.txt
+
+RUN pip install \
+    fastapi==0.119.1 \
+    uvicorn[standard]==0.38.0 \
+    python-multipart==0.0.20 \
+    python-decouple==3.8
+
+# Pre-download DeepSeek-OCR-2 model
+RUN python -c "from transformers import AutoModel, AutoTokenizer; \
+    tokenizer = AutoTokenizer.from_pretrained('deepseek-ai/DeepSeek-OCR-2', trust_remote_code=True); \
+    model = AutoModel.from_pretrained('deepseek-ai/DeepSeek-OCR-2', trust_remote_code=True, use_safetensors=True); \
+    print('DeepSeek-OCR-2 model downloaded successfully')"
+
+COPY web_service_unified.py .
+COPY web_service.py .
+COPY web_service_gpu.py .
+COPY gpu_manager.py .
+COPY ocr_ui_modern.html .
+COPY backends ./backends
+COPY i18n.js .
+COPY frontend/dist ./frontend/dist
+
+EXPOSE 8001
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5m --retries=3 \
+    CMD curl -f http://localhost:8001/health || exit 1
+
+CMD ["python", "web_service_unified.py"]

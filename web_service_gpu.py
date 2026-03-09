@@ -52,7 +52,7 @@ def load_model_func():
         print("🔄 Switching to ModelScope...")
         backend.load_model(source="modelscope")
     
-    return backend.model, backend.processor
+    return backend.model, backend.tokenizer
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

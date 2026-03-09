@@ -4,6 +4,74 @@
 
 ---
 
+## [v4.1] - 2026-02-20
+
+### 🏷️ UI Improvements & Model Version Display
+
+**前端改进：**
+- Header 新增 `OCR-2` 绿色模型标识，用户一眼即知当前模型版本
+- 修复表格渲染：OCR 识别的表格现在显示白色背景、深色文字、斑马纹交替行，解决之前深色背景导致内容不可读的问题
+- Footer 版本更新为 `v4.1 · OCR-2`
+
+**API 改进：**
+- `/health` 接口新增 `model_version: "DeepSeek-OCR-2"` 字段，支持程序化版本检测
+
+**技术细节：**
+- `Preview.vue` — 表格 CSS 增加 `background-color: #ffffff`, `color: #1f2937`, `tr:nth-child(even)` 斑马纹
+- `AppHeader.vue` — 新增 `.model-badge` 组件（绿色渐变背景圆角标签）
+- `EmptyState.vue` — 版本号 v3.6 → v4.1 · OCR-2
+- `web_service_unified.py` — health response 增加 `model_version` 字段，FastAPI version → 4.1.0
+
+---
+
+## [v4.0] - 2026-02-20
+
+### 🧠 重大更新：DeepSeek-OCR-2 模型升级 / Major: DeepSeek-OCR-2 Model Upgrade
+
+**核心升级 / Core Upgrade:**
+- ✅ 模型升级至 [DeepSeek-OCR-2](https://github.com/deepseek-ai/DeepSeek-OCR-2)（Visual Causal Flow 架构）
+- ✅ 动态分辨率：(0-6)×768×768 + 1×1024×1024（原 640×640）
+- ✅ CUDA 环境启用 Flash Attention 2（`_attn_implementation='flash_attention_2'`）
+- ✅ Tokenizer 从 `AutoProcessor` 统一为 `AutoTokenizer`（与官方 OCR-2 API 对齐）
+- ✅ `image_size` 从 640 升级至 768
+- ✅ 移除硬编码 revision hash，使用最新模型版本
+
+**后端改动 / Backend Changes:**
+- ✅ `backends/cuda_backend.py` - OCR-2 模型 + flash_attention_2 + image_size=768
+- ✅ `backends/mps_backend.py` - OCR-2 模型 + eager attention + image_size=768
+- ✅ `backends/cpu_backend.py` - OCR-2 模型 + image_size=768
+- ✅ `backends/transformers_backend.py` - 重写为 model.infer() 统一接口
+- ✅ `web_service_unified.py` - 默认模型路径更新
+- ✅ `web_service.py` - 模型路径 + flash_attention_2 + image_size=768
+- ✅ `web_service_gpu.py` - 修复 tokenizer 引用
+- ✅ `web_service_vllm_backup.py` - 模型路径 + IMAGE_SIZE=768
+- ✅ `mcp_server.py` - 描述文字更新
+
+**Docker / 部署:**
+- ✅ 新增 `Dockerfile.v4.0`（基于 nvcr.io/nvidia/pytorch:25.09-py3）
+- ✅ 基础镜像已内置 flash-attn，无需额外编译
+- ✅ 预下载 DeepSeek-OCR-2 模型（all-in-one）
+- ✅ Docker tag: `neosun/deepseek-ocr:v4.0`
+
+**兼容性 / Compatibility:**
+- ✅ REST API 接口完全不变（前端零改动）
+- ✅ 所有 7 种识别模式保持不变
+- ✅ Prompt 格式完全兼容
+- ✅ 并发控制、限流、队列管理等 v3.6 功能完全保留
+- ✅ `LOCAL_MODEL_PATH` 环境变量仍可用于指定自定义模型路径
+
+**技术对比 / Technical Comparison:**
+
+| 组件 | v3.6 (OCR v1) | v4.0 (OCR-2) |
+|------|---------------|---------------|
+| 模型 | `deepseek-ai/DeepSeek-OCR` | `deepseek-ai/DeepSeek-OCR-2` |
+| image_size | 640 | 768 |
+| Attention | eager | flash_attention_2 (CUDA) |
+| Tokenizer | AutoProcessor | AutoTokenizer |
+| 分辨率 | 固定裁剪 | 动态 (0-6)×768 + 1×1024 |
+
+---
+
 ## [v3.3.3] - 2025-11-05
 
 ### 🔧 改进 / Improvements

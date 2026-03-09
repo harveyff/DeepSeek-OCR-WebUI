@@ -1,29 +1,34 @@
-"""Transformers Backend for CPU/MPS"""
-from typing import Optional
+"""Transformers Backend for CPU/MPS - DeepSeek-OCR-2 (generate-based fallback)"""
 from PIL import Image
-from transformers import AutoProcessor, AutoModelForVision2Seq
+from transformers import AutoTokenizer, AutoModel
 import torch
 
+DEFAULT_MODEL_PATH = "deepseek-ai/DeepSeek-OCR-2"
+DEFAULT_BASE_SIZE = 1024
+DEFAULT_IMAGE_SIZE = 768
+DEFAULT_CROP_MODE = True
+
 class TransformersBackend:
-    def __init__(self, model_path: str = "deepseek-ai/DeepSeek-OCR"):
+    def __init__(self, model_path: str = DEFAULT_MODEL_PATH):
         self.model_path = model_path
         self.model = None
-        self.processor = None
+        self.tokenizer = None
         self.device = "mps" if torch.backends.mps.is_available() else "cpu"
         
     def load_model(self):
         """Load model with transformers"""
         try:
-            print(f"📦 Loading model: {self.model_path} on {self.device}")
-            self.processor = AutoProcessor.from_pretrained(
+            print(f"📦 Loading DeepSeek-OCR-2: {self.model_path} on {self.device}")
+            self.tokenizer = AutoTokenizer.from_pretrained(
                 self.model_path,
                 trust_remote_code=True
             )
-            self.model = AutoModelForVision2Seq.from_pretrained(
+            self.model = AutoModel.from_pretrained(
                 self.model_path,
                 trust_remote_code=True,
+                use_safetensors=True,
                 torch_dtype=torch.float16 if self.device == "mps" else torch.float32
-            ).to(self.device)
+            ).eval().to(self.device)
             print(f"✅ Model loaded successfully on {self.device}")
             return True
         except Exception as e:
@@ -31,27 +36,20 @@ class TransformersBackend:
             raise
     
     def infer(self, prompt: str, image_path: str, **kwargs) -> str:
-        """Run inference"""
+        """Run inference via model.infer()"""
         try:
-            image = Image.open(image_path).convert('RGB')
-            
-            inputs = self.processor(
-                text=prompt,
-                images=image,
-                return_tensors="pt"
-            ).to(self.device)
-            
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=kwargs.get('max_tokens', 2048),
-                temperature=kwargs.get('temperature', 0.0),
-                do_sample=False,
-                pad_token_id=self.processor.tokenizer.eos_token_id
+            result = self.model.infer(
+                tokenizer=self.tokenizer,
+                prompt=prompt,
+                image_file=image_path,
+                output_path='./output',
+                base_size=DEFAULT_BASE_SIZE,
+                image_size=DEFAULT_IMAGE_SIZE,
+                crop_mode=DEFAULT_CROP_MODE,
+                save_results=False,
+                eval_mode=True
             )
-            
-            result = self.processor.decode(outputs[0], skip_special_tokens=False)
-            return result
-            
+            return result if result else ""
         except Exception as e:
             print(f"❌ Inference failed: {e}")
             raise

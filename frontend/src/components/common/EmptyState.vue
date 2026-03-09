@@ -36,6 +36,23 @@
         {{ $t('app.startImport') }}
       </NButton>
     </div>
+    <div class="empty-state-footer">
+      <span>Made with ❤️ by </span>
+      <a
+        href="https://github.com/neosun100"
+        target="_blank"
+        rel="noopener"
+      >neosun100</a>
+      <span> & </span>
+      <a
+        href="https://github.com/cloudman6"
+        target="_blank"
+        rel="noopener"
+      >cloudman6</a>
+      <div class="footer-version">
+        DeepSeek-OCR-WebUI v4.1 · OCR-2 | © 2026
+      </div>
+    </div>
   </div>
 </template>
 
@@ -104,4 +121,29 @@ defineEmits<{
   }
 }
 
+.empty-state-footer {
+  position: absolute;
+  bottom: 24px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+}
+
+.empty-state-footer a {
+  color: v-bind(PRIMARY_COLOR);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.empty-state-footer a:hover {
+  text-decoration: underline;
+}
+
+.footer-version {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #bbb;
+}
 </style>
