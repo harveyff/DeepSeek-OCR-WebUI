@@ -1,6 +1,10 @@
-# DeepSeek-OCR-2 Docker Image v4.0 - ARM64
-# For ARM64 platforms: Apple Silicon (MPS), ARM servers (CPU)
-# Auto-detects MPS/CPU at runtime via web_service_unified.py
+# DeepSeek-OCR-2 Docker Image v4.0 - ARM64 with GPU Support (CUDA)
+# For ARM64 Linux servers with NVIDIA GPU
+#
+# IMPORTANT: ARM64 CUDA support is limited!
+# - NVIDIA Jetson platforms: Fully supported
+# - Standard ARM64 servers (AWS Graviton): May not support CUDA
+# - If CUDA is not available, consider using x86_64 architecture instead
 
 # Stage 1: Build frontend from source
 FROM node:20-slim AS frontend-builder
@@ -20,33 +24,71 @@ RUN if [ -f package.json ]; then \
         echo "No package.json found, keeping empty dist directory"; \
     fi
 
-# Stage 2: Main application
-FROM python:3.12-slim
+# Stage 2: Main application (NVIDIA CUDA base image for ARM64)
+FROM nvcr.io/nvidia/pytorch:25.09-py3
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     DEBIAN_FRONTEND=noninteractive \
+    VLLM_USE_V1=0 \
+    CUDA_VISIBLE_DEVICES=0 \
+    LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH \
+    CUDA_HOME=/usr/local/cuda \
     HF_HOME=/app/models \
-    TRANSFORMERS_CACHE=/app/models
+    TRANSFORMERS_CACHE=/app/models \
+    FORCE_BACKEND=cuda
 
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y \
-    wget curl git build-essential \
+    wget \
+    curl \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install PyTorch (CPU/MPS, no CUDA for ARM64)
-RUN pip install --upgrade pip && \
-    pip install torch torchvision torchaudio
-
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt && \
+    pip cache purge || true
+
+RUN python -c "import torch; print(f'PyTorch version: {torch.__version__}'); print(f'CUDA compiled: {torch.version.cuda if hasattr(torch.version, \"cuda\") and torch.version.cuda else \"N/A\"}')" || \
+    (echo "PyTorch not found in base image, installing..." && \
+     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 || \
+     echo "Failed to install PyTorch")
+
+RUN python <<EOF
+import torch
+import sys
+
+print(f"PyTorch version: {torch.__version__}")
+print(f"CUDA compiled version: {torch.version.cuda if hasattr(torch.version, 'cuda') and torch.version.cuda else 'N/A'}")
+
+cuda_compiled = hasattr(torch.version, 'cuda') and torch.version.cuda is not None
+cuda_available = torch.cuda.is_available()
+
+if cuda_compiled:
+    print("PyTorch is compiled with CUDA support")
+    if cuda_available:
+        print(f"CUDA device available during build: {torch.cuda.get_device_name(0)}")
+    else:
+        print("CUDA device not available during build (this is normal)")
+        print("CUDA devices are only available at runtime with --gpus all")
+else:
+    print("WARNING: PyTorch may not be compiled with CUDA support")
+    print("If CUDA is not available at runtime, you may need to:")
+    print("1. Use x86_64 architecture")
+    print("2. Use NVIDIA Jetson platform")
+EOF
 
 RUN pip install \
     fastapi==0.119.1 \
     uvicorn[standard]==0.38.0 \
     python-multipart==0.0.20 \
-    python-decouple==3.8
+    python-decouple==3.8 && \
+    pip cache purge || true
+
+RUN pip cache purge || true
 
 COPY web_service_unified.py .
 COPY web_service.py .
@@ -56,7 +98,6 @@ COPY ocr_ui_modern.html .
 COPY backends ./backends
 COPY i18n.js .
 
-# Copy frontend build output from Stage 1
 RUN mkdir -p ./frontend/dist
 COPY --from=frontend-builder /build/frontend/dist ./frontend/dist
 
