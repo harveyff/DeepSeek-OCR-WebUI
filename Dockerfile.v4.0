@@ -47,12 +47,6 @@ RUN pip install \
     python-multipart==0.0.20 \
     python-decouple==3.8
 
-# Pre-download DeepSeek-OCR-2 model into image for fast startup
-RUN python -c "from transformers import AutoModel, AutoTokenizer; \
-    tokenizer = AutoTokenizer.from_pretrained('deepseek-ai/DeepSeek-OCR-2', trust_remote_code=True); \
-    model = AutoModel.from_pretrained('deepseek-ai/DeepSeek-OCR-2', trust_remote_code=True, use_safetensors=True); \
-    print('DeepSeek-OCR-2 model downloaded successfully')"
-
 COPY web_service_unified.py .
 COPY web_service.py .
 COPY web_service_gpu.py .
