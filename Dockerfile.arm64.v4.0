@@ -1,0 +1,68 @@
+# DeepSeek-OCR-2 Docker Image v4.0 - ARM64
+# For ARM64 platforms: Apple Silicon (MPS), ARM servers (CPU)
+# Auto-detects MPS/CPU at runtime via web_service_unified.py
+
+# Stage 1: Build frontend from source
+FROM node:20-slim AS frontend-builder
+WORKDIR /build
+RUN mkdir -p frontend/dist
+COPY frontend ./frontend/
+WORKDIR /build/frontend
+RUN if [ -f package.json ]; then \
+        if [ -f package-lock.json ]; then \
+            npm ci; \
+        else \
+            npm install; \
+        fi && \
+        npm run build && \
+        rm -rf node_modules .npm; \
+    else \
+        echo "No package.json found, keeping empty dist directory"; \
+    fi
+
+# Stage 2: Main application
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    HF_HOME=/app/models \
+    TRANSFORMERS_CACHE=/app/models
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    wget curl git build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install PyTorch (CPU/MPS, no CUDA for ARM64)
+RUN pip install --upgrade pip && \
+    pip install torch torchvision torchaudio
+
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+RUN pip install \
+    fastapi==0.119.1 \
+    uvicorn[standard]==0.38.0 \
+    python-multipart==0.0.20 \
+    python-decouple==3.8
+
+COPY web_service_unified.py .
+COPY web_service.py .
+COPY web_service_gpu.py .
+COPY gpu_manager.py .
+COPY ocr_ui_modern.html .
+COPY backends ./backends
+COPY i18n.js .
+
+# Copy frontend build output from Stage 1
+RUN mkdir -p ./frontend/dist
+COPY --from=frontend-builder /build/frontend/dist ./frontend/dist
+
+EXPOSE 8001
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5m --retries=3 \
+    CMD curl -f http://localhost:8001/health || exit 1
+
+CMD ["python", "web_service_unified.py"]
